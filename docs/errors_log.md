@@ -40,3 +40,20 @@
 - **Causa:** No existía validación de duplicados en la carga masiva.
 - **Solución:** Se agregó columna `source_hash` a `bulk_imports`, restricción única y verificación en `import_products`.
 - **Archivos:** `bulk_imports`, función `import_products`, endpoint `/api/import/save`, frontend.
+## 2026-09-01 — Error de clave duplicada al aprobar cargas
+- **Síntoma:** `duplicate key value violates unique constraint "products_sku_key"` al aprobar una carga pendiente.
+- **Causa:** Productos con SKU repetido dentro de la misma carga o de cargas anteriores.
+- **Solución:** Se reescribió `approve_bulk_import` para agrupar por SKU/nombre, sumar cantidades y reutilizar productos existentes.
+- **Archivo:** función `approve_bulk_import`.
+
+## 2026-09-01 — Error de columna `updated_at` inexistente en `bulk_imports`
+- **Síntoma:** `column "updated_at" of relation "bulk_imports" does not exist` al aprobar.
+- **Causa:** La tabla no tiene columna `updated_at`; se intentaba actualizar en la función de aprobación.
+- **Solución:** Se eliminó la actualización de `updated_at` de la función.
+- **Archivo:** función `approve_bulk_import`.
+
+## 2026-09-01 — Error de tipos en `or` dentro de función SQL
+- **Síntoma:** `argument of OR must be type boolean, not type text`.
+- **Causa:** Uso incorrecto de `or` entre textos en vez de `coalesce`.
+- **Solución:** Se reemplazó por `coalesce` para elegir el primer valor no nulo.
+- **Archivo:** función `approve_bulk_import`.

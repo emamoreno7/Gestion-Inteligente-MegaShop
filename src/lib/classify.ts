@@ -35,7 +35,8 @@ export const categoryKeywords: Record<string, string[]> = {
     otros: [] // vacío: se usa si no hay coincidencia
   }
   
-  export function classifyByKeywords(name: string): string | null {
+  export function classifyByKeywords(name: string | undefined | null): string | null {
+    if (typeof name !== 'string' || name.trim() === '') return null
     const cleanName = name.toLowerCase().trim()
     for (const [category, keywords] of Object.entries(categoryKeywords)) {
       if (category === 'otros') continue

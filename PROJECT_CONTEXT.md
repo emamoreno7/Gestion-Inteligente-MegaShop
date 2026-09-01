@@ -25,12 +25,10 @@
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Probar flujo completo con CSV/Excel de ejemplo (columnas name, sku, quantity, cost_price, category).
-2. Crear vista de stock (`/stock`) que muestre `stock_levels` por local.
-3. Implementar gestión de pendientes: pantalla para que owner/encargado aprueben cargas `pending_approval` hechas por depósito.
-4. Ajustar input de costo unitario para evitar salto de cursor (guardar string crudo de edición y formatear onBlur).
-5. Mejorar auditoría visual del modal: agregar campo de costo unitario editable y total en tiempo real.
-6. Evaluar si conviene mover la clasificación al servidor para desacoplar frontend y evitar futuros conflictos.
+1. Crear pantalla de Stock (`/stock`) con filtros y detalle de movimientos.
+2. Mejorar OCR para extraer precios unitarios con validación server-side de moneda.
+3. Refactor del input de costo unitario para evitar salto de cursor.
+4. Preparar esquema base de POS con `synced_at`.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
@@ -50,3 +48,11 @@
 - Conteos físicos generan evento propio.
 - Idempotencia en carga masiva: columna `source_hash`, restricción única y validación en `import_products`.
 - Mejoras de UX en importación: botón claro para cargar archivo/imagen y errores visibles en modal.
+- Políticas RLS server-side para roles y location.
+- Funciones helper de autorización (`current_role_name`, `current_location_id`, `is_owner_admin`, `has_permission`).
+- Trigger `apply_stock_movement` que recalcula `stock_levels` desde `stock_movements`.
+- Idempotencia en carga masiva (`source_hash` + restricción única + validación en `import_products`).
+- Funciones de aprobación/rechazo de cargas (`approve_bulk_import`, `reject_bulk_import`).
+- Página `/approvals` con detalle expandible, confirmación de acciones y navbar global.
+- Navbar reutilizable con enlaces y cierre de sesión.
+- Banner de pendientes en dashboard.

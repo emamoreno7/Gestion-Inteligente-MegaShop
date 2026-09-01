@@ -53,8 +53,12 @@ export default function ImportPage() {
 
   useEffect(() => {
     const loadCategories = async () => {
-      const { data } = await supabase.from('categories').select('id, name')
-      if (data) setCategories(data)
+      const { data, error } = await supabase.from('categories').select('id, name')
+      if (error) {
+        console.warn('Error cargando categorías:', error.message)
+      } else if (data) {
+        setCategories(data)
+      }
     }
     loadCategories()
   }, [])
@@ -62,7 +66,20 @@ export default function ImportPage() {
   const normalizeNumber = (value: any): number | null => {
     if (value === null || value === undefined || value === '') return null
     if (typeof value === 'number') return value
-    let str = String(value).replace(/\./g, '').replace(',', '.')
+
+    let str = String(value).trim()
+    // Quitar símbolos de moneda, espacios y caracteres no numéricos excepto coma/punto/guion
+    str = str.replace(/[^0-9,.-]/g, '')
+
+    // Si usa formato AR (punto de miles y coma decimal)
+    if (str.includes(',') && str.includes('.')) {
+      // Quitar puntos de miles y reemplazar coma decimal por punto
+      str = str.replace(/\./g, '').replace(',', '.')
+    } else if (str.includes(',')) {
+      // Solo coma decimal
+      str = str.replace(',', '.')
+    }
+
     const num = parseFloat(str)
     return isNaN(num) ? null : num
   }
@@ -125,13 +142,51 @@ export default function ImportPage() {
         const buffer = await file.arrayBuffer()
         const workbook = XLSX.read(buffer, { type: 'array' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const data = XLSX.utils.sheet_to_json<ProductRow>(sheet)
-        const normalized = data.map(p => ({
-          ...p,
-          cost_price: normalizeNumber(p.cost_price),
-          sale_price: normalizeNumber(p.sale_price),
-          quantity: p.quantity ? parseInt(String(p.quantity)) : 1,
-        }))
+        const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet)
+
+        // Normalizar columnas: detectar nombre, sku, barcode, price, quantity, category
+        const normalized: ProductRow[] = rawData
+          .filter(row => {
+            // omitir filas totalmente vacías
+            return Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '')
+          })
+          .map(row => {
+            const getValue = (...candidates: string[]) => {
+              for (const candidate of candidates) {
+                const key = Object.keys(row).find(k => k.toLowerCase() === candidate.toLowerCase())
+                if (key) return row[key]
+              }
+              return undefined
+            }
+
+            const name = getValue('name', 'nombre', 'producto', 'descripcion', 'descripción') as string | undefined
+            const sku = getValue('sku', 'codigo', 'código', 'code') as string | undefined
+            const barcode = getValue('barcode', 'codigo_barras', 'código_barras') as string | undefined
+            const cost_price = getValue(
+              'cost_price', 'costo', 'costo unitario', 'costo unit.', 'costo unit',
+              'precio_costo', 'precio costo', 'precio unitario', 'precio unit.',
+              'precio unit', 'precio_unitario', 'precio', 'costo neto'
+            ) as number | string | undefined
+
+            const sale_price = getValue(
+              'sale_price', 'venta', 'precio_venta', 'precio venta', 'precio',
+              'precio de venta', 'venta unitaria', 'venta unit.', 'venta unit'
+            ) as number | string | undefined
+
+            const quantity = getValue('quantity', 'cantidad', 'cant') as number | string | undefined
+            const category = getValue('category', 'rubro', 'categoria') as string | undefined
+
+            return {
+              name: name?.toString() || 'Producto sin nombre',
+              sku: sku?.toString() || null,
+              barcode: barcode?.toString() || null,
+              cost_price: normalizeNumber(cost_price),
+              sale_price: normalizeNumber(sale_price),
+              quantity: quantity ? parseInt(String(quantity)) : 1,
+              category: category || null,
+            }
+          })
+
         const classified = await classifyProducts(normalized)
         setProducts(classified)
         setImportType(file.name.endsWith('.csv') ? 'csv' : 'excel')
@@ -139,7 +194,8 @@ export default function ImportPage() {
         setError('Formato no soportado. Usa CSV o Excel.')
       }
     } catch (e) {
-      setError('Error al leer el archivo')
+      console.error('Error leyendo archivo:', e)
+      setError('Error al leer el archivo. Mirá la consola (F12) para más detalle.')
     } finally {
       setLoading(false)
     }
@@ -181,7 +237,8 @@ export default function ImportPage() {
         setError('No se pudieron extraer productos. Revisa la imagen o intenta con otra.')
       }
     } catch (e) {
-      setError('Error al procesar OCR')
+      console.error('Error leyendo archivo:', e)
+      setError('Error al leer el archivo. Mirá la consola (F12) para detalle.')
     } finally {
       setLoading(false)
     }
