@@ -20,6 +20,13 @@ type Category = {
   id: string
   name: string
 }
+function toSlug(name: string) {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
 
 export default function ImportPage() {
   const [tab, setTab] = useState<'file' | 'ocr'>('file')
@@ -151,7 +158,7 @@ export default function ImportPage() {
       if (!res.ok) {
         setError(data.error || 'Error en OCR')
       } else if (data.products && Array.isArray(data.products)) {
-        let productsFromOCR = data.products.map((p: any) => ({
+        const productsFromOCR = data.products.map((p: any) => ({
           name: p.name || 'Producto',
           sku: p.sku || null,
           barcode: p.barcode || null,
@@ -160,11 +167,6 @@ export default function ImportPage() {
           sale_price: normalizeNumber(p.sale_price),
           category: p.category || 'otros',
         }))
-
-        const hasRealCategory = productsFromOCR.some((p: ProductRow) => p.category && p.category !== 'otros')
-        if (!hasRealCategory) {
-          productsFromOCR = await classifyProducts(productsFromOCR)
-        }
 
         setProducts(productsFromOCR)
         setImportType('ocr')
@@ -302,23 +304,19 @@ export default function ImportPage() {
           <div className="mt-6">
             <h2 className="text-xl font-semibold text-white mb-4">Vista previa ({products.length} productos)</h2>
             <div className="bg-gray-800 rounded-lg overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-700">
+            <table className="min-w-full divide-y divide-gray-700">
                 <thead className="bg-gray-700">
                   <tr>
+                    <th className="px-4 py-2 text-left text-xs text-gray-300">Cant.</th>
                     <th className="px-4 py-2 text-left text-xs text-gray-300">Producto</th>
                     <th className="px-4 py-2 text-left text-xs text-gray-300">Código</th>
-                    <th className="px-4 py-2 text-left text-xs text-gray-300">Cant.</th>
                     <th className="px-4 py-2 text-left text-xs text-gray-300">Rubro</th>
                     <th className="px-4 py-2 text-left text-xs text-gray-300">Costo unit.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
                   {products.map((p, idx) => (
-                    <tr key={idx}>
-                      <td className="px-4 py-2 text-sm text-white">{p.name}</td>
-                      <td className="px-4 py-2 text-sm text-gray-300">
-                        {p.sku || p.barcode || '-'}
-                      </td>
+                    <tr key={p.barcode ?? p.sku ?? `${p.name}-${idx}`}>
                       <td className="px-4 py-2 text-sm text-gray-300">
                         <input
                           type="number"
@@ -332,9 +330,13 @@ export default function ImportPage() {
                           className="w-20 bg-gray-700 text-white border border-gray-600 rounded px-2 py-1"
                         />
                       </td>
+                      <td className="px-4 py-2 text-sm text-white">{p.name}</td>
+                      <td className="px-4 py-2 text-sm text-gray-300">
+                        {p.sku || p.barcode || '-'}
+                      </td>
                       <td className="px-4 py-2 text-sm text-gray-300">
                         <select
-                          value={p.category || 'otros'}
+                          value={toSlug(p.category || 'otros')}
                           onChange={(e) => {
                             const updated = [...products]
                             updated[idx] = { ...updated[idx], category: e.target.value }
@@ -343,7 +345,7 @@ export default function ImportPage() {
                           className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1"
                         >
                           {categories.map(c => (
-                            <option key={c.id} value={c.name.toLowerCase()}>
+                            <option key={c.id} value={toSlug(c.name)}>
                               {c.name}
                             </option>
                           ))}
@@ -352,7 +354,14 @@ export default function ImportPage() {
                       <td className="px-4 py-2 text-sm text-gray-300">
                         <input
                           type="text"
-                          value={p.cost_price !== undefined && p.cost_price !== null ? p.cost_price.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                          value={
+                            p.cost_price !== undefined && p.cost_price !== null
+                              ? p.cost_price.toLocaleString('es-AR', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })
+                              : ''
+                          }
                           onChange={(e) => {
                             const raw = e.target.value
                             const num = normalizeNumber(raw)
@@ -368,9 +377,9 @@ export default function ImportPage() {
                 </tbody>
                 <tfoot className="bg-gray-700">
                   <tr>
+                    <td className="px-4 py-2 text-sm font-semibold text-white">{totalUnits()}</td>
                     <td className="px-4 py-2 text-sm font-semibold text-white">Totales</td>
                     <td></td>
-                    <td className="px-4 py-2 text-sm font-semibold text-white">{totalUnits()}</td>
                     <td></td>
                     <td className="px-4 py-2 text-sm font-semibold text-white">${formatCurrency(totalCost())}</td>
                   </tr>
@@ -408,7 +417,34 @@ export default function ImportPage() {
                   />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-white">{p.name}</p>
-                    <p className="text-xs text-gray-400">Cantidad: {p.quantity || 1} | Rubro: {p.category || 'otros'}</p>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="number"
+                        min="1"
+                        value={p.quantity || 1}
+                        onChange={(e) => {
+                          const updated = [...products]
+                          updated[idx] = { ...updated[idx], quantity: parseInt(e.target.value) || 1 }
+                          setProducts(updated)
+                        }}
+                        className="w-20 bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs"
+                      />
+                      <select
+                        value={p.category || 'otros'}
+                        onChange={(e) => {
+                          const updated = [...products]
+                          updated[idx] = { ...updated[idx], category: e.target.value }
+                          setProducts(updated)
+                        }}
+                        className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs"
+                      >
+                        {categories.map(c => (
+                          <option key={c.id} value={c.name.toLowerCase()}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               ))}
