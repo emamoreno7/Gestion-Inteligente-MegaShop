@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Navbar from '@/components/Navbar'
 
 type Product = {
   id: string
@@ -72,7 +73,9 @@ export default function CatalogPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-white">Catálogo de Productos</h1>
@@ -148,6 +151,7 @@ export default function CatalogPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

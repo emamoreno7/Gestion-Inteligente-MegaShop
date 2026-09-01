@@ -48,3 +48,5 @@
 - Roles y permisos son datos, no código.
 - Atributos de producto en `attributes jsonb`.
 - Conteos físicos generan evento propio.
+- Idempotencia en carga masiva: columna `source_hash`, restricción única y validación en `import_products`.
+- Mejoras de UX en importación: botón claro para cargar archivo/imagen y errores visibles en modal.

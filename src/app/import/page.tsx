@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/client'
 import { classifyByKeywords } from '@/lib/classify'
+import Navbar from '@/components/Navbar'
 
 type ProductRow = {
   name: string
@@ -43,6 +44,12 @@ export default function ImportPage() {
   const [omitMap, setOmitMap] = useState<Record<number, boolean>>({})
   const router = useRouter()
   const supabase = createClient()
+  const calculateHash = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -210,6 +217,13 @@ export default function ImportPage() {
         throw new Error('No hay productos seleccionados para guardar.')
       }
 
+      // Calcular hash desde el archivo original (si está disponible)
+      let sourceHash: string | null = null
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+      if (fileInput?.files?.[0]) {
+        sourceHash = await calculateHash(fileInput.files[0])
+      }
+
       const res = await fetch('/api/import/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,6 +231,7 @@ export default function ImportPage() {
           products: productsToSave,
           importType,
           fileName,
+          sourceHash,
         }),
       })
 
@@ -251,7 +266,9 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Importar Productos</h1>
 
@@ -272,27 +289,33 @@ export default function ImportPage() {
 
         {tab === 'file' && (
           <div className="bg-gray-800 rounded-lg p-6">
-            <input
-              type="file"
-              accept=".csv,.xls,.xlsx"
-              onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-              className="text-gray-300"
-            />
-            <p className="text-gray-400 text-sm mt-2">
+            <label className="inline-block px-6 py-3 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600">
+              Seleccionar archivo CSV/Excel
+              <input
+                type="file"
+                accept=".csv,.xls,.xlsx"
+                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                className="hidden"
+              />
+            </label>
+            <p className="text-gray-400 text-sm mt-4">
               Columnas esperadas: name, sku, barcode, cost_price, sale_price, category (opcional), quantity
             </p>
           </div>
         )}
 
-        {tab === 'ocr' && (
+{tab === 'ocr' && (
           <div className="bg-gray-800 rounded-lg p-6">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => e.target.files?.[0] && handleOCRUpload(e.target.files[0])}
-              className="text-gray-300"
-            />
-            <p className="text-gray-400 text-sm mt-2">
+            <label className="inline-block px-6 py-3 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600">
+              Seleccionar imagen (foto)
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => e.target.files?.[0] && handleOCRUpload(e.target.files[0])}
+                className="hidden"
+              />
+            </label>
+            <p className="text-gray-400 text-sm mt-4">
               Sube una foto de un remito o lista manuscrita. El sistema extraerá los productos.
             </p>
           </div>
@@ -462,15 +485,16 @@ export default function ImportPage() {
               </label>
             </div>
 
-            <div className="mb-4 text-gray-300">
-              Resumen:
-              {getCategorySummary().map(({ category, count }) => (
-                <div key={category} className="flex justify-between">
-                  <span>{category}</span>
-                  <span className="font-semibold">{count} unidad(es)</span>
-                </div>
-              ))}
-            </div>
+            {error && (
+              <div className="mb-4 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="mb-4 text-green-400 text-sm">
+                {success}
+              </div>
+            )}
 
             <div className="flex gap-4">
               <button
@@ -490,6 +514,7 @@ export default function ImportPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }

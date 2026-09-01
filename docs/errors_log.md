@@ -29,3 +29,14 @@
 - **Causa:** Variables de entorno no configuradas en Vercel.
 - **Solución:** Agregar `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `GROQ_TEXT_MODEL` en Vercel → Settings → Environment Variables.
 - **Referencia:** Deploy exitoso tras agregarlas.
+## 2026-09-01 — Falta de feedback visual en carga/importación
+- **Síntoma:** Al guardar un archivo duplicado no aparecía mensaje de error; el input de archivo era poco visible.
+- **Causa:** El mensaje de error se renderizaba fuera del modal, por lo que no era visible; el input nativo no tenía estilos ni etiqueta clara.
+- **Solución:** Se movió el error al modal y se reemplazó el input por un label con estilo de botón.
+- **Archivo:** `src/app/import/page.tsx`.
+
+## 2026-09-01 — Idempotencia de carga masiva
+- **Síntoma:** Un mismo remito podía importarse dos veces, duplicando stock.
+- **Causa:** No existía validación de duplicados en la carga masiva.
+- **Solución:** Se agregó columna `source_hash` a `bulk_imports`, restricción única y verificación en `import_products`.
+- **Archivos:** `bulk_imports`, función `import_products`, endpoint `/api/import/save`, frontend.
