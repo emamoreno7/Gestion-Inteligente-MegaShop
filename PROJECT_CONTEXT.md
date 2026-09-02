@@ -30,15 +30,20 @@
 - Función `create_sale` actualizada para leer precios/costos desde `product_location_data`.
 - `sale_items` con columnas `cost_price`, `original_price`, `modified_by`, `modified_at`.
 - Venta completada end-to-end en POS con validación de stock y precio congelado.
+- Anulación de ventas (`void_sale`) con motivo obligatorio, control de autoanulación y umbral de monto.
+- Devolución parcial (`create_return`) con validación contra lo vendido y lo ya devuelto.
+- Historial de ventas (`/sales/history`) con detalle de pagos, devoluciones y anulaciones.
+- Fix de visualización de nombres de productos y usuarios en historial.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-11. Mejorar OCR para extraer precios unitarios (validación server-side).
-2. Refactor input de costo para evitar salto de cursor.
-3. Preparar esquema base POS offline con synced_at.
+1. Integración con Mercado Pago (posnet y transferencias).
+2. Mejora de OCR para precios unitarios con validación server-side.
+3. Refactor de inputs de costo para evitar salto de cursor.
+4. Preparar esquema base POS offline con synced_at.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.

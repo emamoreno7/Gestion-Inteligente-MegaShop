@@ -84,3 +84,14 @@
 - **Causa:** Función create_sale desactualizada tras migrar precios a product_location_data.
 - **Solución:** Se reescribió create_sale para leer precios/costos desde product_location_data y congelarlos en sale_items.
 - **Archivos:** función SQL `create_sale`, tabla `sale_items`.
+## 2026-09-02 — Nombres genéricos en historial de ventas
+- **Síntoma:** "Producto" o "Usuario" en vez de nombres reales.
+- **Causa:** Joins embebidos de Supabase devolvían arrays; no se mapeaban correctamente.
+- **Solución:** Se cargaron productos y usuarios por separado y se mapearon con Map.
+- **Archivos:** `src/app/sales/history/page.tsx`.
+
+## 2026-09-02 — Validación de devolución
+- **Síntoma:** Se necesitaba verificar que create_return rechazara productos que no están en la venta.
+- **Causa:** Se validó comparando product_id del movimiento con sale_items.
+- **Solución:** Confirmado correcto; no se requirió cambio.
+- **Archivos:** función SQL `create_return`.
