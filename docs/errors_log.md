@@ -68,3 +68,14 @@
 - **Causa:** Candidatos de columnas insuficientes y `normalizeNumber` no manejaba formato AR.
 - **Solución:** Ampliación de candidatos y normalización robusta de moneda.
 - **Archivo:** `src/app/import/page.tsx`.
+## 2026-09-02 — Error en /api/pending por filtros anidados
+- **Síntoma:** GET /api/pending devolvía 500.
+- **Causa:** Uso de `.not('product', ...)` sobre relaciones en Supabase JS.
+- **Solución:** Se reemplazó por `!inner` en el select y filtrado en JS.
+- **Archivo:** `src/app/api/pending/route.ts`.
+
+## 2026-09-02 — Productos sin precio no aparecían en pendientes
+- **Síntoma:** POS mostraba artículos sin precio, pero /pending decía que no había nada.
+- **Causa:** Faltaba una cola para productos con rubro y costo pero `price_status='pending'`.
+- **Solución:** Se agregó recálculo masivo con `recalculate_pending_prices`.
+- **Archivos:** RPC en Supabase, `src/app/api/pending/recalculate/route.ts`, `src/app/pending/page.tsx`.

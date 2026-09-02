@@ -22,16 +22,20 @@
 - Carga masiva CSV/Excel robusta con detección de columnas en español y normalización de moneda.
 - Módulo de Punto de Venta (POS) con carrito, búsqueda y creación de ventas.
 - Función SQL `create_sale` que valida stock, registra venta, ítems, pago y movimientos.
+- Separación catálogo (`products`) / datos comerciales por sucursal (`product_location_data`).
+- Margen por rubro con override por sucursal (`category_margins`).
+- Pantalla `/pending` con dos colas: Asignar Rubro y Agregar Costo.
+- Recálculo masivo de precios pendientes con rubro + costo + margen.
+- POS actualizado para leer precios desde `product_location_data` y bloquear productos sin precio.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Probar flujo completo de venta con stock cargado.
-2. Mejorar OCR para extraer precios unitarios (validación server-side).
-3. Refactor input de costo para evitar salto de cursor.
-4. Preparar esquema base POS con synced_at para offline.
+1. Crear/corregir endpoint `/api/sales/create` para registrar ventas con precio congelado.
+2. Implementar `sale_items` con columnas original_price, modified_by, modified_at.
+3. Probar POS end-to-end.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
