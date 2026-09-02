@@ -31,6 +31,18 @@ export default function Navbar() {
             <Link href="/approvals" className="text-gray-300 hover:text-white">
               Aprobaciones
             </Link>
+            <Link href="/pending" className="text-gray-300 hover:text-white">
+              Pendientes
+            </Link>
+            <Link href="/stock" className="text-gray-300 hover:text-white">
+              Stock
+            </Link>
+            <Link href="/pos" className="text-gray-300 hover:text-white">
+              POS
+            </Link>
+            <Link href="/settings" className="text-gray-300 hover:text-white">
+              Configuración
+            </Link>
           </div>
           <button
             onClick={handleLogout}

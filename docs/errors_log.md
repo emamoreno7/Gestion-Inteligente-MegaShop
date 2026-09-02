@@ -57,3 +57,14 @@
 - **Causa:** Uso incorrecto de `or` entre textos en vez de `coalesce`.
 - **Solución:** Se reemplazó por `coalesce` para elegir el primer valor no nulo.
 - **Archivo:** función `approve_bulk_import`.
+## 2026-09-01 — Error al leer archivos CSV/XLSX
+- **Síntoma:** "Error al leer el archivo" al subir CSV/XLSX.
+- **Causa:** `classifyByKeywords` recibía `name` undefined por columnas en español o mayúsculas.
+- **Solución:** Se normalizaron columnas con detección flexible y se robusteció la función de clasificación.
+- **Archivos:** `src/app/import/page.tsx`, `src/lib/classify.ts`.
+
+## 2026-09-01 — Valores de costo/venta en 0 en carga masiva
+- **Síntoma:** No se veían precios al importar CSV/XLSX.
+- **Causa:** Candidatos de columnas insuficientes y `normalizeNumber` no manejaba formato AR.
+- **Solución:** Ampliación de candidatos y normalización robusta de moneda.
+- **Archivo:** `src/app/import/page.tsx`.

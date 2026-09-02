@@ -21,6 +21,7 @@ type Category = {
   id: string
   name: string
 }
+
 function toSlug(name: string) {
   return name
     .toLowerCase()
@@ -42,8 +43,10 @@ export default function ImportPage() {
   const [saving, setSaving] = useState(false)
   const [acceptedCheck, setAcceptedCheck] = useState(false)
   const [omitMap, setOmitMap] = useState<Record<number, boolean>>({})
+
   const router = useRouter()
   const supabase = createClient()
+
   const calculateHash = async (file: File): Promise<string> => {
     const buffer = await file.arrayBuffer()
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
@@ -68,16 +71,21 @@ export default function ImportPage() {
     if (typeof value === 'number') return value
 
     let str = String(value).trim()
-    // Quitar símbolos de moneda, espacios y caracteres no numéricos excepto coma/punto/guion
     str = str.replace(/[^0-9,.-]/g, '')
 
-    // Si usa formato AR (punto de miles y coma decimal)
-    if (str.includes(',') && str.includes('.')) {
-      // Quitar puntos de miles y reemplazar coma decimal por punto
+    const hasComma = str.includes(',')
+    const hasDot = str.includes('.')
+
+    if (hasComma && hasDot) {
       str = str.replace(/\./g, '').replace(',', '.')
-    } else if (str.includes(',')) {
-      // Solo coma decimal
+    } else if (hasComma) {
       str = str.replace(',', '.')
+    } else if (hasDot) {
+      const parts = str.split('.')
+      const isThousands = parts.length > 2 || (parts.length === 2 && parts[1].length === 3)
+      if (isThousands) {
+        str = str.replace(/\./g, '')
+      }
     }
 
     const num = parseFloat(str)
@@ -142,18 +150,14 @@ export default function ImportPage() {
         const buffer = await file.arrayBuffer()
         const workbook = XLSX.read(buffer, { type: 'array' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet)
+        const rawData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { raw: false, defval: '' })
 
-        // Normalizar columnas: detectar nombre, sku, barcode, price, quantity, category
         const normalized: ProductRow[] = rawData
-          .filter(row => {
-            // omitir filas totalmente vacías
-            return Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '')
-          })
+          .filter(row => Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== ''))
           .map(row => {
             const getValue = (...candidates: string[]) => {
               for (const candidate of candidates) {
-                const key = Object.keys(row).find(k => k.toLowerCase() === candidate.toLowerCase())
+                const key = Object.keys(row).find(k => k.toLowerCase().includes(candidate.toLowerCase()))
                 if (key) return row[key]
               }
               return undefined
@@ -167,12 +171,10 @@ export default function ImportPage() {
               'precio_costo', 'precio costo', 'precio unitario', 'precio unit.',
               'precio unit', 'precio_unitario', 'precio', 'costo neto'
             ) as number | string | undefined
-
             const sale_price = getValue(
               'sale_price', 'venta', 'precio_venta', 'precio venta', 'precio',
               'precio de venta', 'venta unitaria', 'venta unit.', 'venta unit'
             ) as number | string | undefined
-
             const quantity = getValue('quantity', 'cantidad', 'cant') as number | string | undefined
             const category = getValue('category', 'rubro', 'categoria') as string | undefined
 
@@ -274,7 +276,6 @@ export default function ImportPage() {
         throw new Error('No hay productos seleccionados para guardar.')
       }
 
-      // Calcular hash desde el archivo original (si está disponible)
       let sourceHash: string | null = null
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
       if (fileInput?.files?.[0]) {
@@ -326,251 +327,240 @@ export default function ImportPage() {
     <>
       <Navbar />
       <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-white mb-6">Importar Productos</h1>
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-2xl font-bold text-white mb-6">Importar Productos</h1>
 
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setTab('file')}
-            className={`px-4 py-2 rounded ${tab === 'file' ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-300'}`}
-          >
-            CSV / Excel
-          </button>
-          <button
-            onClick={() => setTab('ocr')}
-            className={`px-4 py-2 rounded ${tab === 'ocr' ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-300'}`}
-          >
-            Foto (OCR)
-          </button>
-        </div>
-
-        {tab === 'file' && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <label className="inline-block px-6 py-3 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600">
-              Seleccionar archivo CSV/Excel
-              <input
-                type="file"
-                accept=".csv,.xls,.xlsx"
-                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                className="hidden"
-              />
-            </label>
-            <p className="text-gray-400 text-sm mt-4">
-              Columnas esperadas: name, sku, barcode, cost_price, sale_price, category (opcional), quantity
-            </p>
-          </div>
-        )}
-
-{tab === 'ocr' && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <label className="inline-block px-6 py-3 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600">
-              Seleccionar imagen (foto)
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files?.[0] && handleOCRUpload(e.target.files[0])}
-                className="hidden"
-              />
-            </label>
-            <p className="text-gray-400 text-sm mt-4">
-              Sube una foto de un remito o lista manuscrita. El sistema extraerá los productos.
-            </p>
-          </div>
-        )}
-
-        {loading && <p className="text-gray-300 mt-4">Procesando...</p>}
-
-        {products.length > 0 && (
-          <div className="mt-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Vista previa ({products.length} productos)</h2>
-            <div className="bg-gray-800 rounded-lg overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-700">
-                <thead className="bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs text-gray-300">Cant.</th>
-                    <th className="px-4 py-2 text-left text-xs text-gray-300">Producto</th>
-                    <th className="px-4 py-2 text-left text-xs text-gray-300">Código</th>
-                    <th className="px-4 py-2 text-left text-xs text-gray-300">Rubro</th>
-                    <th className="px-4 py-2 text-left text-xs text-gray-300">Costo unit.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                  {products.map((p, idx) => (
-                    <tr key={p.barcode ?? p.sku ?? `${p.name}-${idx}`}>
-                      <td className="px-4 py-2 text-sm text-gray-300">
-                        <input
-                          type="number"
-                          min="1"
-                          value={p.quantity || 1}
-                          onChange={(e) => {
-                            const updated = [...products]
-                            updated[idx] = { ...updated[idx], quantity: parseInt(e.target.value) || 1 }
-                            setProducts(updated)
-                          }}
-                          className="w-20 bg-gray-700 text-white border border-gray-600 rounded px-2 py-1"
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-sm text-white">{p.name}</td>
-                      <td className="px-4 py-2 text-sm text-gray-300">
-                        {p.sku || p.barcode || '-'}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-300">
-                        <select
-                          value={toSlug(p.category || 'otros')}
-                          onChange={(e) => {
-                            const updated = [...products]
-                            updated[idx] = { ...updated[idx], category: e.target.value }
-                            setProducts(updated)
-                          }}
-                          className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1"
-                        >
-                          {categories.map(c => (
-                            <option key={c.id} value={toSlug(c.name)}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-300">
-                        <input
-                          type="text"
-                          value={
-                            p.cost_price !== undefined && p.cost_price !== null
-                              ? p.cost_price.toLocaleString('es-AR', {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })
-                              : ''
-                          }
-                          onChange={(e) => {
-                            const raw = e.target.value
-                            const num = normalizeNumber(raw)
-                            const updated = [...products]
-                            updated[idx] = { ...updated[idx], cost_price: num }
-                            setProducts(updated)
-                          }}
-                          className="w-32 bg-gray-700 text-white border border-gray-600 rounded px-2 py-1"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-700">
-                  <tr>
-                    <td className="px-4 py-2 text-sm font-semibold text-white">{totalUnits()}</td>
-                    <td className="px-4 py-2 text-sm font-semibold text-white">Totales</td>
-                    <td></td>
-                    <td></td>
-                    <td className="px-4 py-2 text-sm font-semibold text-white">${formatCurrency(totalCost())}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+          <div className="flex gap-4 mb-6">
             <button
-              onClick={() => setShowAuditModal(true)}
-              disabled={loading}
-              className="mt-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              onClick={() => setTab('file')}
+              className={`px-4 py-2 rounded ${tab === 'file' ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-300'}`}
             >
-              Guardar productos
+              CSV / Excel
+            </button>
+            <button
+              onClick={() => setTab('ocr')}
+              className={`px-4 py-2 rounded ${tab === 'ocr' ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-300'}`}
+            >
+              Foto (OCR)
             </button>
           </div>
-        )}
 
-        {error && <div className="mt-4 text-red-400">{error}</div>}
-        {success && <div className="mt-4 text-green-400">{success}</div>}
-      </div>
+          {tab === 'file' && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <label className="inline-block px-6 py-3 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600">
+                Seleccionar archivo CSV/Excel
+                <input
+                  type="file"
+                  accept=".csv,.xls,.xlsx"
+                  onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-gray-400 text-sm mt-4">
+                Columnas esperadas: name, sku, barcode, cost_price, sale_price, category (opcional), quantity
+              </p>
+            </div>
+          )}
 
-      {showAuditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-white mb-4">Auditoría rápida de carga</h2>
-            <p className="text-gray-300 mb-4">Revisa cada producto. Puedes omitir los que no estén correctos.</p>
-            
-            <div className="space-y-2 mb-4">
-              {products.map((p, idx) => (
-                <div key={idx} className={`flex items-start gap-3 p-2 rounded ${omitMap[idx] ? 'bg-gray-700 opacity-50' : 'bg-gray-750'}`}>
-                  <input
-                    type="checkbox"
-                    checked={!omitMap[idx]}
-                    onChange={() => toggleOmit(idx)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-white">{p.name}</p>
-                    <div className="flex gap-2 mt-1">
-                      <input
-                        type="number"
-                        min="1"
-                        value={p.quantity || 1}
-                        onChange={(e) => {
-                          const updated = [...products]
-                          updated[idx] = { ...updated[idx], quantity: parseInt(e.target.value) || 1 }
-                          setProducts(updated)
-                        }}
-                        className="w-20 bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs"
-                      />
-                      <select
-                        value={p.category || 'otros'}
-                        onChange={(e) => {
-                          const updated = [...products]
-                          updated[idx] = { ...updated[idx], category: e.target.value }
-                          setProducts(updated)
-                        }}
-                        className="bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-xs"
-                      >
-                        {categories.map(c => (
-                          <option key={c.id} value={c.name.toLowerCase()}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+          {tab === 'ocr' && (
+            <div className="bg-gray-800 rounded-lg p-6">
+              <label className="inline-block px-6 py-3 bg-indigo-500 text-white rounded cursor-pointer hover:bg-indigo-600">
+                Seleccionar imagen (foto)
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => e.target.files?.[0] && handleOCRUpload(e.target.files[0])}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-gray-400 text-sm mt-4">
+                Sube una foto de un remito o lista manuscrita. El sistema extraerá los productos.
+              </p>
+            </div>
+          )}
+
+          {loading && <p className="text-gray-300 mt-4">Procesando...</p>}
+
+          {products.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold text-white mb-4">Vista previa ({products.length} productos)</h2>
+              <div className="bg-gray-800 rounded-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs text-gray-300">Cant.</th>
+                      <th className="px-4 py-2 text-left text-xs text-gray-300">Producto</th>
+                      <th className="px-4 py-2 text-left text-xs text-gray-300">Código</th>
+                      <th className="px-4 py-2 text-left text-xs text-gray-300">Rubro</th>
+                      <th className="px-4 py-2 text-left text-xs text-gray-300">Costo unit.</th>
+                      <th className="px-4 py-2 text-left text-xs text-gray-300">Venta unit.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {products.map((p, idx) => (
+                      <tr key={p.barcode ?? p.sku ?? `${p.name}-${idx}`}>
+                        <td className="px-4 py-2 text-sm text-gray-300">{p.quantity || 1}</td>
+                        <td className="px-4 py-2 text-sm text-white">{p.name}</td>
+                        <td className="px-4 py-2 text-sm text-gray-300">{p.sku || p.barcode || '-'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-300">{p.category || 'otros'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-300">{p.cost_price !== undefined && p.cost_price !== null ? formatCurrency(p.cost_price) : '-'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-300">{p.sale_price !== undefined && p.sale_price !== null ? formatCurrency(p.sale_price) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-700">
+                    <tr>
+                      <td className="px-4 py-2 text-sm font-semibold text-white">{totalUnits()}</td>
+                      <td className="px-4 py-2 text-sm font-semibold text-white">Totales</td>
+                      <td></td>
+                      <td></td>
+                      <td className="px-4 py-2 text-sm font-semibold text-white">${formatCurrency(totalCost())}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <button
+                onClick={() => setShowAuditModal(true)}
+                disabled={loading}
+                className="mt-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                Revisar y guardar
+              </button>
+            </div>
+          )}
+
+          {error && <div className="mt-4 text-red-400">{error}</div>}
+          {success && <div className="mt-4 text-green-400">{success}</div>}
+        </div>
+
+        {showAuditModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+              <h2 className="text-xl font-semibold text-white mb-4">Auditoría y edición de carga</h2>
+              <p className="text-gray-300 mb-4">Revisá y editá cada producto. Desmarcá los que no quieras cargar.</p>
+
+              <div className="space-y-3 mb-4">
+                {products.map((p, idx) => (
+                  <div key={idx} className={`flex items-start gap-3 p-3 rounded ${omitMap[idx] ? 'bg-gray-700 opacity-50' : 'bg-gray-750'}`}>
+                    <input
+                      type="checkbox"
+                      checked={!omitMap[idx]}
+                      onChange={() => toggleOmit(idx)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm font-medium text-white">{p.name}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-400">Cantidad</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={p.quantity || 1}
+                            onChange={(e) => {
+                              const updated = [...products]
+                              updated[idx] = { ...updated[idx], quantity: parseInt(e.target.value) || 1 }
+                              setProducts(updated)
+                            }}
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400">Rubro</label>
+                          <select
+                            value={toSlug(p.category || 'otros')}
+                            onChange={(e) => {
+                              const updated = [...products]
+                              updated[idx] = { ...updated[idx], category: e.target.value }
+                              setProducts(updated)
+                            }}
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm"
+                          >
+                            {categories.map(c => (
+                              <option key={c.id} value={toSlug(c.name)}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400">Costo unit.</label>
+                          <input
+                            type="text"
+                            value={p.cost_price !== undefined && p.cost_price !== null ? String(p.cost_price) : ''}
+                            onChange={(e) => {
+                              const num = normalizeNumber(e.target.value)
+                              const updated = [...products]
+                              updated[idx] = { ...updated[idx], cost_price: num }
+                              setProducts(updated)
+                            }}
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400">Venta unit.</label>
+                          <input
+                            type="text"
+                            value={p.sale_price !== undefined && p.sale_price !== null ? String(p.sale_price) : ''}
+                            onChange={(e) => {
+                              const num = normalizeNumber(e.target.value)
+                              const updated = [...products]
+                              updated[idx] = { ...updated[idx], sale_price: num }
+                              setProducts(updated)
+                            }}
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-1 text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mb-4">
-              <label className="flex items-start gap-2 text-gray-300 text-sm">
-                <input
-                  type="checkbox"
-                  checked={acceptedCheck}
-                  onChange={(e) => setAcceptedCheck(e.target.checked)}
-                  className="mt-1"
-                />
-                <span>Acepto que he revisado los detalles y estoy seguro de cargar esta mercadería al stock.</span>
-              </label>
-            </div>
-
-            {error && (
-              <div className="mb-4 text-red-400 text-sm">
-                {error}
+                ))}
               </div>
-            )}
-            {success && (
-              <div className="mb-4 text-green-400 text-sm">
-                {success}
-              </div>
-            )}
 
-            <div className="flex gap-4">
-              <button
-                onClick={confirmSave}
-                disabled={saving || !acceptedCheck}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Confirmar y guardar'}
-              </button>
-              <button
-                onClick={() => setShowAuditModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Cancelar
-              </button>
+              <div className="mb-4">
+                <label className="flex items-start gap-2 text-gray-300 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={acceptedCheck}
+                    onChange={(e) => setAcceptedCheck(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span>Acepto que he revisado los detalles y estoy seguro de cargar esta mercadería al stock.</span>
+                </label>
+              </div>
+
+              <div className="mb-4 text-gray-300 text-sm">
+                Resumen:
+                {getCategorySummary().map(({ category, count }) => (
+                  <div key={category} className="flex justify-between">
+                    <span>{category}</span>
+                    <span className="font-semibold">{count} unidad(es)</span>
+                  </div>
+                ))}
+              </div>
+
+              {error && <div className="mb-4 text-red-400 text-sm">{error}</div>}
+              {success && <div className="mb-4 text-green-400 text-sm">{success}</div>}
+
+              <div className="flex gap-4">
+                <button
+                  onClick={confirmSave}
+                  disabled={saving || !acceptedCheck}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : 'Confirmar y guardar'}
+                </button>
+                <button
+                  onClick={() => setShowAuditModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </>
   )

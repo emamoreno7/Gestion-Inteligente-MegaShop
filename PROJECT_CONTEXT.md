@@ -19,16 +19,19 @@
 - Variables de entorno agregadas en Vercel: `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `GROQ_TEXT_MODEL`.
 - Bug de tildes en rubros corregido: `toSlug` para normalizar categorías y que el `select` de la tabla funcione correctamente.
 - Tabla de vista previa reorganizada y funcional: Cant. | Producto | Código | Rubro | Costo unit.
+- Carga masiva CSV/Excel robusta con detección de columnas en español y normalización de moneda.
+- Módulo de Punto de Venta (POS) con carrito, búsqueda y creación de ventas.
+- Función SQL `create_sale` que valida stock, registra venta, ítems, pago y movimientos.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Crear pantalla de Stock (`/stock`) con filtros y detalle de movimientos.
-2. Mejorar OCR para extraer precios unitarios con validación server-side de moneda.
-3. Refactor del input de costo unitario para evitar salto de cursor.
-4. Preparar esquema base de POS con `synced_at`.
+1. Probar flujo completo de venta con stock cargado.
+2. Mejorar OCR para extraer precios unitarios (validación server-side).
+3. Refactor input de costo para evitar salto de cursor.
+4. Preparar esquema base POS con synced_at para offline.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.

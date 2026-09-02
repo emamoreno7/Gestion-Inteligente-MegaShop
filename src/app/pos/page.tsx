@@ -10,6 +10,7 @@ type Product = {
   sku: string | null
   barcode: string | null
   sale_price: number | null
+  price_status: string | null
   category: { name: string } | null
 }
 
@@ -30,6 +31,21 @@ export default function POSPage() {
 
   useEffect(() => {
     const loadProducts = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('location_id')
+        .eq('id', user.id)
+        .single()
+
+      const locationId = userRow?.location_id
+      if (!locationId) {
+        console.error('No se pudo determinar la sucursal del usuario')
+        return
+      }
+
       const { data } = await supabase
         .from('products')
         .select(`
@@ -37,21 +53,27 @@ export default function POSPage() {
           name,
           sku,
           barcode,
-          sale_price,
-          category:categories(name)
+          category:categories(name),
+          product_location_data!inner ( sale_price, price_status, location_id )
         `)
+        .eq('product_location_data.location_id', locationId)
         .limit(50)
-        if (data) {
-            const mapped: Product[] = data.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              sku: item.sku,
-              barcode: item.barcode,
-              sale_price: item.sale_price,
-              category: item.category && item.category.length > 0 ? item.category[0] : null,
-            }))
-            setProducts(mapped)
+
+      if (data) {
+        const mapped: Product[] = data.map((item: any) => {
+          const pld = Array.isArray(item.product_location_data) ? item.product_location_data[0] : item.product_location_data
+          return {
+            id: item.id,
+            name: item.name,
+            sku: item.sku,
+            barcode: item.barcode,
+            sale_price: pld?.sale_price ?? null,
+            price_status: pld?.price_status ?? null,
+            category: item.category && item.category.length > 0 ? item.category[0] : null,
           }
+        })
+        setProducts(mapped)
+      }
     }
     loadProducts()
   }, [])
@@ -63,6 +85,10 @@ export default function POSPage() {
   )
 
   const addToCart = (product: Product) => {
+    if (product.price_status === 'pending') {
+      alert('Este producto no tiene precio asignado. Andá a "Pendientes" para asignarle un precio antes de venderlo.')
+      return
+    }
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id)
       if (existing) {
@@ -70,7 +96,7 @@ export default function POSPage() {
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
-        )
+       )
       }
       return [...prev, { product, quantity: 1 }]
     })
@@ -128,7 +154,6 @@ export default function POSPage() {
       <Navbar />
       <div className="min-h-screen bg-gray-900 p-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Catálogo */}
           <div>
             <h1 className="text-2xl font-bold text-white mb-4">Punto de Venta</h1>
             <input
@@ -143,12 +168,12 @@ export default function POSPage() {
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="w-full text-left p-3 bg-gray-800 rounded hover:bg-gray-700"
+                  className={`w-full text-left p-3 rounded ${product.price_status === 'pending' ? 'bg-gray-800 opacity-50 cursor-not-allowed' : 'bg-gray-800 hover:bg-gray-700'}`}
                 >
                   <div className="flex justify-between">
                     <span className="text-white">{product.name}</span>
                     <span className="text-gray-300">
-                      ${product.sale_price?.toLocaleString('es-AR')}
+                      {product.price_status === 'pending' ? 'Sin precio' : `$${product.sale_price?.toLocaleString('es-AR')}`}
                     </span>
                   </div>
                 </button>
@@ -156,7 +181,6 @@ export default function POSPage() {
             </div>
           </div>
 
-          {/* Carrito */}
           <div className="bg-gray-800 rounded-lg p-6 h-fit">
             <h2 className="text-xl font-semibold text-white mb-4">Carrito</h2>
             {cart.length === 0 ? (
@@ -188,7 +212,7 @@ export default function POSPage() {
 
               <select
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+              onChange={(e) => setPaymentMethod(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-700 text-white border border-gray-600 rounded mb-4"
               >
                 <option value="cash">Efectivo</option>

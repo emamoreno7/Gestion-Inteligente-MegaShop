@@ -9,28 +9,67 @@ type Product = {
   name: string
   sku: string | null
   barcode: string | null
+  category_id: string | null
   sale_price: number | null
   cost_price: number | null
-  category_id: string | null
+  price_status: string | null
 }
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [locationId, setLocationId] = useState<string | null>(null)
   const supabase = createClient()
+
+  const getMyLocationId = async (): Promise<string | null> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    const { data } = await supabase
+      .from('users')
+      .select('location_id')
+      .eq('id', user.id)
+      .single()
+    return data?.location_id ?? null
+  }
 
   const loadProducts = async () => {
     setLoading(true)
+    const locId = await getMyLocationId()
+    setLocationId(locId)
+
+    if (!locId) {
+      console.error('No se pudo determinar la sucursal del usuario')
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, sku, barcode, sale_price, cost_price, category_id')
+      .select(`
+        id, name, sku, barcode, category_id, created_at,
+        product_location_data!inner ( cost_price, sale_price, price_status )
+      `)
+      .eq('product_location_data.location_id', locId)
       .order('created_at', { ascending: false })
 
     if (error) {
       console.error(error)
     } else {
-      setProducts(data || [])
+      const mapped: Product[] = (data || []).map((row: any) => {
+        const pld = Array.isArray(row.product_location_data) ? row.product_location_data[0] : row.product_location_data
+        return {
+          id: row.id,
+          name: row.name,
+          sku: row.sku,
+          barcode: row.barcode,
+          category_id: row.category_id,
+          cost_price: pld?.cost_price ?? null,
+          sale_price: pld?.sale_price ?? null,
+          price_status: pld?.price_status ?? null,
+        }
+      })
+      setProducts(mapped)
     }
     setLoading(false)
   }
@@ -49,22 +88,44 @@ export default function CatalogPage() {
     const sale_price = parseFloat(formData.get('sale_price') as string)
     const cost_price = parseFloat(formData.get('cost_price') as string)
 
-    // Obtener usuario autenticado
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { error } = await supabase.from('products').insert({
-      name,
-      sku: sku || null,
-      barcode: barcode || null,
-      sale_price,
-      cost_price,
-      created_by: user.id,
-    })
+    if (!locationId) {
+      alert('No se pudo determinar tu sucursal.')
+      return
+    }
 
-    if (error) {
-      console.error(error)
-      alert('Error al crear producto: ' + error.message)
+    const { data: newProduct, error: productError } = await supabase
+      .from('products')
+      .insert({
+        name,
+        sku: sku || null,
+        barcode: barcode || null,
+        created_by: user.id,
+      })
+      .select('id')
+      .single()
+
+    if (productError || !newProduct) {
+      console.error(productError)
+      alert('Error al crear producto: ' + productError?.message)
+      return
+    }
+
+    const { error: pldError } = await supabase
+      .from('product_location_data')
+      .insert({
+        product_id: newProduct.id,
+        location_id: locationId,
+        sale_price: isNaN(sale_price) ? null : sale_price,
+        cost_price: isNaN(cost_price) ? null : cost_price,
+        price_status: !isNaN(sale_price) && sale_price > 0 ? 'set' : 'pending',
+      })
+
+    if (pldError) {
+      console.error(pldError)
+      alert('Producto creado, pero falló guardar el precio: ' + pldError.message)
     } else {
       form.reset()
       setShowForm(false)
@@ -74,7 +135,7 @@ export default function CatalogPage() {
 
   return (
     <>
-      <Navbar />
+     <Navbar />
       <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
@@ -93,7 +154,7 @@ export default function CatalogPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300">Nombre *</label>
-                <input name="name" required className="mt-1 w-full bg-gray-700 text-whit border border-gray-600 rounded px-3 py-2" />
+                <input name="name" required className="mt-1 w-full bg-gray-700 text-white border border-gray-600 rounde px-3 py-2" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300">SKU</label>
@@ -109,7 +170,7 @@ export default function CatalogPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300">Precio de costo</label>
-               <input name="cost_price" type="number" step="0.01" className="mt-1 w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2" />
+                <input name="cost_price" type="number" step="0.01" className="mt-1 w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2" />
               </div>
             </div>
             <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
@@ -122,7 +183,7 @@ export default function CatalogPage() {
           <p className="text-gray-300">Cargando productos...</p>
         ) : products.length === 0 ? (
           <div className="bg-gray-800 shadow rounded p-10 text-center text-gray-400">
-            No hay productos todavía. Agrega el primero.
+            No hay productos todavía en esta sucursal. Agrega el primero.
           </div>
         ) : (
           <div className="bg-gray-800 shadow rounded overflow-hidden">
@@ -130,10 +191,11 @@ export default function CatalogPage() {
               <thead className="bg-gray-700">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300">Nombre</th>
-                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-300">SKU</th>
+                 <th className="px-4 py-3 text-left text-x font-medium text-gray-300">SKU</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300">Barcode</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300">Precio venta</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-300">Precio costo</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-300">Estado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -144,6 +206,7 @@ export default function CatalogPage() {
                     <td className="px-4 py-3 text-sm text-gray-300">{p.barcode || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{p.sale_price ?? '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{p.cost_price ?? '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{p.price_status ?? '-'}</td>
                   </tr>
                 ))}
               </tbody>

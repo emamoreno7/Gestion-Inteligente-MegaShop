@@ -31,28 +31,13 @@ export default function DashboardPage() {
     getUser()
   }, [supabase, router])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
-
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-gray-900 p-6">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-800 rounded-lg shadow p-6 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-
-          <div className="mt-6 bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-gray-800 rounded-lg shadow p-6">
+            <h1 className="text-2xl font-bold text-white mb-4">Dashboard</h1>
             <p className="text-gray-300">
               {userEmail ? `Sesión iniciada como: ${userEmail}` : 'Cargando...'}
             </p>
@@ -66,30 +51,23 @@ export default function DashboardPage() {
               </Link>
             )}
 
-            <nav className="mt-6 flex gap-4">
-              <Link
-                href="/catalog"
-                className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
-              >
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Link href="/catalog" className="p-4 bg-gray-700 rounded text-white hover:bg-gray-600">
                 Catálogo
               </Link>
-              <Link
-                href="/import"
-                className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
-              >
+              <Link href="/import" className="p-4 bg-gray-700 rounded text-white hover:bg-gray-600">
                 Importar
               </Link>
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-              >
-                Dashboard
+              <Link href="/approvals" className="p-4 bg-gray-700 rounded text-white hover:bg-gray-600">
+                Aprobaciones
               </Link>
-            </nav>
-
-            <p className="mt-4 text-sm text-gray-400">
-              Próximamente: stock, ventas, etc.
-            </p>
+              <Link href="/stock" className="p-4 bg-gray-700 rounded text-white hover:bg-gray-600">
+                Stock
+              </Link>
+              <Link href="/pos" className="p-4 bg-gray-700 rounded text-white hover:bg-gray-600">
+                Punto de Venta
+              </Link>
+            </div>
           </div>
         </div>
       </div>
