@@ -95,3 +95,8 @@
 - **Causa:** Se validó comparando product_id del movimiento con sale_items.
 - **Solución:** Confirmado correcto; no se requirió cambio.
 - **Archivos:** función SQL `create_return`.
+## 2026-09-02 — Función no encontrada en schema cache
+- **Síntoma:** Error "Could not find the function public.confirm_pending_sale(p_sale_id) in the schema cache".
+- **Causa:** Sobrecarga con parámetros default no resuelta por PostgREST.
+- **Solución:** Se creó `confirm_pending_sale(uuid)` con un solo parámetro.
+- **Archivos:** función SQL, endpoint `/api/sales/confirm`.

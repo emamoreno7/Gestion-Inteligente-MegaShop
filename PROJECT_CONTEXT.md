@@ -34,16 +34,21 @@
 - Devolución parcial (`create_return`) con validación contra lo vendido y lo ya devuelto.
 - Historial de ventas (`/sales/history`) con detalle de pagos, devoluciones y anulaciones.
 - Fix de visualización de nombres de productos y usuarios en historial.
+- Módulo de caja con apertura, cierre y movimientos manuales.
+- Integración de caja con ventas en efectivo (trigger `record_cash_sale_on_payment`).
+- Pantalla `/cash` con resumen y arqueo simple.
+- Flujo de Mercado Pago con venta pendiente y confirmación manual (demo).
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Integración con Mercado Pago (posnet y transferencias).
-2. Mejora de OCR para precios unitarios con validación server-side.
-3. Refactor de inputs de costo para evitar salto de cursor.
-4. Preparar esquema base POS offline con synced_at.
+1. Implementar webhook real de Mercado Pago para confirmación automática.
+2. Job QStash para expirar ventas pendientes de Mercado Pago.
+3. Mejorar OCR para precios unitarios.
+4. Refactor de inputs de costo.
+5. UI/UX final (rediseño táctil tipo iPadOS).
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
