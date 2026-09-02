@@ -27,15 +27,18 @@
 - Pantalla `/pending` con dos colas: Asignar Rubro y Agregar Costo.
 - Recálculo masivo de precios pendientes con rubro + costo + margen.
 - POS actualizado para leer precios desde `product_location_data` y bloquear productos sin precio.
+- Función `create_sale` actualizada para leer precios/costos desde `product_location_data`.
+- `sale_items` con columnas `cost_price`, `original_price`, `modified_by`, `modified_at`.
+- Venta completada end-to-end en POS con validación de stock y precio congelado.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Crear/corregir endpoint `/api/sales/create` para registrar ventas con precio congelado.
-2. Implementar `sale_items` con columnas original_price, modified_by, modified_at.
-3. Probar POS end-to-end.
+11. Mejorar OCR para extraer precios unitarios (validación server-side).
+2. Refactor input de costo para evitar salto de cursor.
+3. Preparar esquema base POS offline con synced_at.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.

@@ -79,3 +79,8 @@
 - **Causa:** Faltaba una cola para productos con rubro y costo pero `price_status='pending'`.
 - **Solución:** Se agregó recálculo masivo con `recalculate_pending_prices`.
 - **Archivos:** RPC en Supabase, `src/app/api/pending/recalculate/route.ts`, `src/app/pending/page.tsx`.
+## 2026-09-02 — Venta con precios congelados
+- **Síntoma:** El POS usaba unit_price enviado por el frontend, sin validar contra product_location_data.
+- **Causa:** Función create_sale desactualizada tras migrar precios a product_location_data.
+- **Solución:** Se reescribió create_sale para leer precios/costos desde product_location_data y congelarlos en sale_items.
+- **Archivos:** función SQL `create_sale`, tabla `sale_items`.
