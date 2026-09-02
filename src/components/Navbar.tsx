@@ -40,6 +40,9 @@ export default function Navbar() {
             <Link href="/pos" className="text-gray-300 hover:text-white">
               POS
             </Link>
+            <Link href="/cash" className="text-gray-300 hover:text-white">
+              Caja
+            </Link>
             <Link href="/sales/history" className="text-gray-300 hover:text-white">
               Ventas
             </Link>

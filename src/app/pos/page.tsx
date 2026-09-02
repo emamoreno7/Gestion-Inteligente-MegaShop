@@ -27,6 +27,8 @@ export default function POSPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [pendingPaymentSaleId, setPendingPaymentSaleId] = useState<string | null>(null)
+  const [pendingPaymentTotal, setPendingPaymentTotal] = useState(0)
   const supabase = createClient()
 
   useEffect(() => {
@@ -142,8 +144,19 @@ export default function POSPage() {
 
     if (!res.ok) {
       setError(data.error || 'Error al procesar la venta')
-    } else {
+      return
+    }
+
+    // Para Mercado Pago: la venta queda pendiente, no abrimos link
+    // El pago se confirmará manualmente desde el historial (demo)
+
+    if (paymentMethod === 'cash') {
       setSuccess(`Venta completada. Total: $${data.data.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`)
+      setCart([])
+      setSearch('')
+    } else {
+      setPendingPaymentSaleId(data.data.sale_id)
+      setPendingPaymentTotal(data.data.total)
       setCart([])
       setSearch('')
     }
@@ -231,6 +244,49 @@ export default function POSPage() {
 
             {error && <div className="mt-4 text-red-400">{error}</div>}
             {success && <div className="mt-4 text-green-400">{success}</div>}
+            {pendingPaymentSaleId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full text-center">
+            <h2 className="text-xl font-semibold text-white mb-2">Pago con Mercado Pago</h2>
+            <p className="text-gray-300 mb-4">Total: ${pendingPaymentTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://mercadopago.com.ar/${pendingPaymentSaleId}`)}`}
+              alt="QR de pago"
+              className="mx-auto mb-4"
+            />
+            <button
+              onClick={async () => {
+                const res = await fetch('/api/sales/confirm', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ sale_id: pendingPaymentSaleId }),
+                })
+                const data = await res.json()
+                if (!res.ok) {
+                  setError(data.error || 'Error al confirmar pago')
+                } else {
+                  setSuccess('Pago confirmado. Venta completada.')
+                  setPendingPaymentSaleId(null)
+                  setPendingPaymentTotal(0)
+                }
+              }}
+              className="w-full py-3 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Ya pagó, confirmar
+            </button>
+            <button
+              onClick={() => {
+                setPendingPaymentSaleId(null)
+                setPendingPaymentTotal(0)
+                setError('Pago cancelado por el cliente')
+              }}
+              className="mt-2 w-full py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
           </div>
         </div>
       </div>

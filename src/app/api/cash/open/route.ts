@@ -29,37 +29,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Usuario sin local asignado' }, { status: 403 })
     }
 
-    const { items, payment_method } = await req.json()
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'Items vacíos' }, { status: 400 })
-    }
-    if (!payment_method) {
-      return NextResponse.json({ error: 'Método de pago requerido' }, { status: 400 })
+    const { initial_cash } = await req.json()
+    if (initial_cash === undefined) {
+      return NextResponse.json({ error: 'Falta initial_cash' }, { status: 400 })
     }
 
-    let rpcName = 'create_sale'
-    let rpcParams: any = {
-      p_items: items,
-      p_payment_method: payment_method,
+    const { data, error } = await supabase.rpc('open_cash_session', {
       p_location_id: userData.location_id,
       p_user_id: user.id,
-    }
+      p_initial_cash: initial_cash,
+    })
 
-    if (payment_method === 'mercadopago' || payment_method === 'transfer') {
-      rpcName = 'create_pending_sale'
-      // No pasamos p_reference; la función usará el sale_id como referencia
-    }
-
-    const { data, error } = await supabase.rpc(rpcName, rpcParams)
-
-    if (error) {
-      console.error(`Error creando venta (${rpcName}):`, error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     return NextResponse.json({ data })
   } catch (error: any) {
-    console.error('Error en sales/create:', error)
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
 }
