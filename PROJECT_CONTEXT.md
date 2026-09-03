@@ -38,17 +38,20 @@
 - Integración de caja con ventas en efectivo (trigger `record_cash_sale_on_payment`).
 - Pantalla `/cash` con resumen y arqueo simple.
 - Flujo de Mercado Pago con venta pendiente y confirmación manual (demo).
+- Rediseño visual integral de todo el sistema con estilo glassmorphism táctil.
+- Dashboard iPadOS, POS ágil, Stock con KPIs, Pendientes con colas visuales.
+- Catálogo con buscador, Importación con zonas drop y OCR, Ventas con tickets detallados.
+- Caja con tablero financiero, Configuración tipo Shopify, Login premium.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Implementar webhook real de Mercado Pago para confirmación automática.
-2. Job QStash para expirar ventas pendientes de Mercado Pago.
-3. Mejorar OCR para precios unitarios.
-4. Refactor de inputs de costo.
-5. UI/UX final (rediseño táctil tipo iPadOS).
+1. Pruebas integrales de todos los módulos con flujos reales.
+2. Ajustes de UX detectados durante la prueba.
+3. Integración real de Mercado Pago (webhook y QR).
+4. Preparar demo para el cliente.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.

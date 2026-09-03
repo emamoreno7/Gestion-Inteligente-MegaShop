@@ -100,3 +100,8 @@
 - **Causa:** Sobrecarga con parámetros default no resuelta por PostgREST.
 - **Solución:** Se creó `confirm_pending_sale(uuid)` con un solo parámetro.
 - **Archivos:** función SQL, endpoint `/api/sales/confirm`.
+## 2026-09-03 — Rediseño visual integral
+- **Síntoma:** Ninguno, pero se realizó cambio masivo de UI.
+- **Causa:** Mejora estética y de experiencia de usuario.
+- **Solución:** Se aplicó glassmorphism en todos los módulos manteniendo lógica de negocio intacta.
+- **Archivos:** Todos los `page.tsx` de `/app`, componentes globales.
