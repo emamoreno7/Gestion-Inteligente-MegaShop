@@ -29,7 +29,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Usuario sin local asignado' }, { status: 403 })
     }
 
-    // Sesión abierta
     const { data: session, error: sessionError } = await supabase
       .from('cash_sessions')
       .select('*')
@@ -40,6 +39,7 @@ export async function GET() {
     if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 })
 
     let movements: any[] = []
+
     if (session) {
       const { data: movData, error: movError } = await supabase
         .from('cash_movements')
@@ -48,7 +48,23 @@ export async function GET() {
         .order('created_at', { ascending: false })
 
       if (movError) return NextResponse.json({ error: movError.message }, { status: 500 })
-      movements = movData || []
+
+      const userIds = Array.from(new Set((movData || []).map((m: any) => m.user_id).filter(Boolean)))
+
+      let userMap = new Map()
+      if (userIds.length > 0) {
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in('id', userIds)
+
+        userMap = new Map((usersData || []).map((u: any) => [u.id, u.full_name]))
+      }
+
+      movements = (movData || []).map((m: any) => ({
+        ...m,
+        user_full_name: userMap.get(m.user_id) || null,
+      }))
     }
 
     return NextResponse.json({ session, movements })
