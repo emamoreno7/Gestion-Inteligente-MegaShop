@@ -53,10 +53,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase.rpc('import_products', {
       p_products: products,
       p_location_id: locationId,
-      p_user_id: user.id,
       p_filename: fileName || 'import',
       p_import_type: importType || 'csv',
-      p_role: roleData.name,
       p_source_hash: sourceHash || null,
     })
 
