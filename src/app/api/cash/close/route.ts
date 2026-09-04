@@ -19,16 +19,16 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-    const { session_id, final_cash } = await req.json()
-    if (!session_id || final_cash === undefined) {
-      return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
-    }
-
-    const { data, error } = await supabase.rpc('close_cash_session', {
-      p_session_id: session_id,
-      p_user_id: user.id,
-      p_final_cash: final_cash,
-    })
+      const { session_id, final_cash, notes } = await req.json()
+      if (!session_id || final_cash === undefined) {
+        return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
+      }
+  
+      const { data, error } = await supabase.rpc('close_cash_session', {
+        p_session_id: session_id,
+        p_counted_cash: final_cash,
+        p_notes: notes || null,
+      })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
