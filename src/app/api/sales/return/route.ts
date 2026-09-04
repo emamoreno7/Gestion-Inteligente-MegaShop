@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase.rpc('create_return', {
       p_sale_id: sale_id,
       p_items: items,
-      p_user_id: user.id,
       p_reason: reason,
     })
 
