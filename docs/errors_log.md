@@ -105,3 +105,8 @@
 - **Causa:** Mejora estética y de experiencia de usuario.
 - **Solución:** Se aplicó glassmorphism en todos los módulos manteniendo lógica de negocio intacta.
 - **Archivos:** Todos los `page.tsx` de `/app`, componentes globales.
+## 2026-09-04 — Blindaje de RPCs críticas
+- **Síntoma:** Funciones de ventas, caja, importación y pendientes dependían de parámetros de usuario y no registraban auditoría.
+- **Causa:** Faltaba autenticación interna (`auth.uid()`), permisos finos y trazabilidad.
+- **Solución:** Se reescribieron todas las RPCs críticas con autorización por permisos, auditoría y manejo de concurrencia.
+- **Archivos:** funciones en Supabase, endpoints correspondientes.

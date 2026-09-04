@@ -42,16 +42,23 @@
 - Dashboard iPadOS, POS ágil, Stock con KPIs, Pendientes con colas visuales.
 - Catálogo con buscador, Importación con zonas drop y OCR, Ventas con tickets detallados.
 - Caja con tablero financiero, Configuración tipo Shopify, Login premium.
+- RPCs blindadas con autenticación, autorización por permisos, auditoría y manejo de concurrencia:
+  - Ventas: create_sale, create_pending_sale, confirm_pending_sale, void_sale, create_return, cancel_pending_sale.
+  - Importación: import_products, approve_bulk_import, reject_bulk_import.
+  - Caja: open_cash_session, close_cash_session, register_cash_movement.
+  - Pendientes: resolve_pending_product, resolve_pending_cost, bulk_assign_categories, recalculate_pending_prices.
+- Se agregó auditoría inmutable en `audit_logs` con función `private.log_audit_event`.
+- Se aplicaron reglas estrictas de stock, precios y control de pérdidas.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Pruebas integrales de todos los módulos con flujos reales.
-2. Ajustes de UX detectados durante la prueba.
-3. Integración real de Mercado Pago (webhook y QR).
-4. Preparar demo para el cliente.
+1. Inventario profesional: conteos físicos, ajustes con motivo, stock mínimo y alertas.
+2. Reportes ejecutivos y KPIs.
+3. Integración real de Mercado Pago con webhook.
+4. Facturación ARCA.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
