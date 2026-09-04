@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
       p_items: items,
       p_payment_method: payment_method,
       p_location_id: userData.location_id,
-      p_user_id: user.id,
     }
 
     if (payment_method === 'mercadopago' || payment_method === 'transfer') {
