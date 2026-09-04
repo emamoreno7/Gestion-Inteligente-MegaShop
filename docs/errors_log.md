@@ -110,3 +110,8 @@
 - **Causa:** Faltaba autenticación interna (`auth.uid()`), permisos finos y trazabilidad.
 - **Solución:** Se reescribieron todas las RPCs críticas con autorización por permisos, auditoría y manejo de concurrencia.
 - **Archivos:** funciones en Supabase, endpoints correspondientes.
+## 2026-09-04 — Implementación de inventario profesional
+- **Síntoma:** Faltaban conteos físicos y ajustes controlados de stock.
+- **Causa:** No existían funciones ni pantallas para inventario.
+- **Solución:** Se creó módulo completo con separación conteo/ajuste, permisos, auditoría y buscador.
+- **Archivos:** RPCs en Supabase, endpoints `/api/inventory/*`, `src/app/inventory/page.tsx`.

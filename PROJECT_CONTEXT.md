@@ -49,16 +49,24 @@
   - Pendientes: resolve_pending_product, resolve_pending_cost, bulk_assign_categories, recalculate_pending_prices.
 - Se agregó auditoría inmutable en `audit_logs` con función `private.log_audit_event`.
 - Se aplicaron reglas estrictas de stock, precios y control de pérdidas.
+- Módulo de inventario profesional:
+  - Conteos físicos (record_stock_count) sin modificar stock.
+  - Ajustes de conteo separados (apply_stock_count_adjustment) con verificación de stock sin cambios.
+  - Ajustes manuales (manual_stock_adjustment) con tipo, motivo e idempotencia.
+  - Stock mínimo por producto (min_stock) y estados visuales.
+- RPCs de inventario blindadas con autenticación, permisos y auditoría.
+- Endpoints de inventario: /api/inventory/count, /api/inventory/apply-count, /api/inventory/adjust.
+- Página /inventory con pestañas Stock, Conteos y Ajustes, y buscador moderno de productos.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Inventario profesional: conteos físicos, ajustes con motivo, stock mínimo y alertas.
-2. Reportes ejecutivos y KPIs.
-3. Integración real de Mercado Pago con webhook.
-4. Facturación ARCA.
+1. Pruebas integrales de inventario (conteo → ajuste → verificación).
+2. Reportes ejecutivos: ventas, ticket promedio, productos más vendidos, diferencias de caja.
+3. Integración real de Mercado Pago con webhook y QR.
+4. Dashboard ejecutivo con métricas en tiempo real.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
