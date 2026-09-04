@@ -90,18 +90,20 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-    const { session_id, amount, movement_type, notes } = await req.json()
-    if (!session_id || !amount || !movement_type) {
-      return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
-    }
-
-    const { data, error } = await supabase.rpc('register_cash_movement', {
-      p_session_id: session_id,
-      p_user_id: user.id,
-      p_amount: amount,
-      p_movement_type: movement_type,
-      p_notes: notes || null,
-    })
+      const { session_id, amount, movement_type, notes } = await req.json()
+      if (!session_id || !amount || !movement_type) {
+        return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
+      }
+  
+      const idempotency_key = crypto.randomUUID()
+  
+      const { data, error } = await supabase.rpc('register_cash_movement', {
+        p_session_id: session_id,
+        p_amount: amount,
+        p_movement_type: movement_type,
+        p_idempotency_key: idempotency_key,
+        p_notes: notes || null,
+      })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
