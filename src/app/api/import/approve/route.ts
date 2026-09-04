@@ -19,13 +19,12 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-    const { bulkImportId } = await req.json()
-    if (!bulkImportId) return NextResponse.json({ error: 'Falta bulkImportId' }, { status: 400 })
-
-    const { data, error } = await supabase.rpc('approve_bulk_import', {
-      p_bulk_import_id: bulkImportId,
-      p_user_id: user.id,
-    })
+      const { bulkImportId } = await req.json()
+      if (!bulkImportId) return NextResponse.json({ error: 'Falta bulkImportId' }, { status: 400 })
+  
+      const { data, error } = await supabase.rpc('approve_bulk_import', {
+        p_bulk_import_id: bulkImportId,
+      })
 
     if (error) {
       console.error('Error aprobando import:', error)
