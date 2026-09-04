@@ -94,3 +94,20 @@
 - Página `/approvals` con detalle expandible, confirmación de acciones y navbar global.
 - Navbar reutilizable con enlaces y cierre de sesión.
 - Banner de pendientes en dashboard.
+
+## RPCs blindadas (auditoría y control de pérdidas)
+
+Todas las funciones críticas usan `auth.uid()` interno, autorización por permisos, bloqueos de fila y auditoría en `audit_logs` vía `private.log_audit_event`.
+
+- Ventas: create_sale, create_pending_sale, confirm_pending_sale, void_sale, create_return, cancel_pending_sale
+- Importación: import_products, approve_bulk_import, reject_bulk_import
+- Caja: open_cash_session, close_cash_session, register_cash_movement
+- Pendientes: resolve_pending_product, resolve_pending_cost, bulk_assign_categories, recalculate_pending_prices
+- Inventario: record_stock_count, apply_stock_count_adjustment, manual_stock_adjustment
+
+Reglas aplicadas:
+- Stock nunca se modifica sin `performed_by` real.
+- Precio/costo siempre desde `product_location_data`, no desde el cliente.
+- Pagos externos no se anulan sin confirmación de reembolso.
+- Conteos y ajustes separados; ajustar exige que el stock no haya cambiado.
+- Idempotencia con `idempotency_key` en operaciones financieras y de stock.

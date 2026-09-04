@@ -115,3 +115,8 @@
 - **Causa:** No existían funciones ni pantallas para inventario.
 - **Solución:** Se creó módulo completo con separación conteo/ajuste, permisos, auditoría y buscador.
 - **Archivos:** RPCs en Supabase, endpoints `/api/inventory/*`, `src/app/inventory/page.tsx`.
+## 2026-09-04 — Blindaje de RPCs e inventario profesional
+- **Síntoma:** Funciones críticas dependían de parámetros de usuario y no tenían auditoría.
+- **Causa:** Faltaba endurecer la capa de base de datos para producción.
+- **Solución:** Se reescribieron todas las RPCs críticas con permisos, locks, auditoría e idempotencia. Se creó módulo de inventario completo.
+- **Archivos:** funciones en Supabase, endpoints `/api/*`, `src/app/inventory/page.tsx`.
