@@ -48,17 +48,17 @@ export default function InventoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Formularios
-  const [countProductSearch, setCountProductSearch] = useState('')
+  // Estados de búsqueda y selección para conteos
   const [countProductId, setCountProductId] = useState('')
+  const [countProductSearch, setCountProductSearch] = useState('')
   const [showCountOptions, setShowCountOptions] = useState(false)
-
-  const [adjustProductSearch, setAdjustProductSearch] = useState('')
-  const [showAdjustOptions, setShowAdjustOptions] = useState(false)
   const [countedQty, setCountedQty] = useState('')
   const [countNotes, setCountNotes] = useState('')
 
+  // Estados de búsqueda y selección para ajustes
   const [adjustProductId, setAdjustProductId] = useState('')
+  const [adjustProductSearch, setAdjustProductSearch] = useState('')
+  const [showAdjustOptions, setShowAdjustOptions] = useState(false)
   const [adjustQty, setAdjustQty] = useState('')
   const [adjustType, setAdjustType] = useState('ajuste')
   const [adjustNotes, setAdjustNotes] = useState('')
@@ -96,7 +96,7 @@ export default function InventoryPage() {
 
     setLocationId(locId)
 
-    // Productos con stock
+    // Productos con datos comerciales
     const { data: pldData, error: pldError } = await supabase
       .from('product_location_data')
       .select(`
@@ -120,7 +120,7 @@ export default function InventoryPage() {
       return
     }
 
-    // Stock levels
+    // Stock actual
     const { data: stockData, error: stockError } = await supabase
       .from('stock_levels')
       .select('product_id, quantity')
@@ -189,7 +189,7 @@ export default function InventoryPage() {
 
     setPendingCounts(mappedPending)
 
-    // Productos para selects
+    // Opciones para los buscadores
     setProductOptions(
       mappedStock.map(s => ({
         id: s.product_id,
@@ -233,6 +233,7 @@ export default function InventoryPage() {
       setCountedQty('')
       setCountNotes('')
       setCountProductId('')
+      setCountProductSearch('')
       await loadInventory()
     }
   }
@@ -282,6 +283,7 @@ export default function InventoryPage() {
     } else {
       setSuccess('Ajuste registrado correctamente')
       setAdjustProductId('')
+      setAdjustProductSearch('')
       setAdjustQty('')
       setAdjustNotes('')
       await loadInventory()
@@ -290,26 +292,44 @@ export default function InventoryPage() {
 
   return (
     <div className="relative w-full min-h-screen overflow-x-hidden bg-gradient-to-br from-[#6FA893] via-[#4E8A82] to-[#3D7373]">
+      {/* Fondo */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[10%] left-[10%] w-[50rem] h-[40rem] rounded-full bg-[#A8D6BD]/40 blur-[120px]" />
         <div className="absolute top-[5%] right-[10%] w-[45rem] h-[45rem] rounded-full bg-[#97C5D2]/35 blur-[120px]" />
+        <div className="absolute bottom-[10%] left-[25%] w-[55rem] h-[45rem] rounded-full bg-[#5E9189]/40 blur-[130px]" />
         <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-black/10" />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 min-h-screen flex flex-col">
+        {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3 sm:gap-4">
-            <Link href="/dashboard" className="flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-xl border border-white/25 text-white hover:bg-white/25 transition-all shadow-lg shrink-0">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            <Link
+              href="/dashboard"
+              className="flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-xl border border-white/25 text-white hover:bg-white/25 transition-all shadow-lg shrink-0"
+              title="Volver al inicio"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
             </Link>
-            <img src="/logo-mega-shop.png" alt="Logo" className="h-9 sm:h-12 w-auto object-contain drop-shadow-md select-none pointer-events-none" />
+
+            <img
+              src="/logo-mega-shop.png"
+              alt="Logo"
+              className="h-9 sm:h-12 w-auto object-contain drop-shadow-md select-none pointer-events-none"
+            />
+
             <div className="pl-2 border-l border-white/20">
-              <h1 className="text-white text-lg sm:text-2xl font-extrabold drop-shadow-lg leading-tight">Inventario</h1>
+              <h1 className="text-white text-lg sm:text-2xl font-extrabold drop-shadow-lg leading-tight">
+                Inventario
+              </h1>
               <p className="text-white/70 text-xs sm:text-sm">Conteos, ajustes y stock mínimo</p>
             </div>
           </div>
         </header>
 
+        {/* Alertas */}
         {(error || success) && (
           <div className="mb-4 space-y-2">
             {error && <div className="bg-rose-500/20 border border-rose-300/30 text-white rounded-2xl px-4 py-3 text-sm font-medium">{error}</div>}
@@ -317,10 +337,26 @@ export default function InventoryPage() {
           </div>
         )}
 
+        {/* Tabs */}
         <div className="flex gap-2 mb-6 p-1 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl w-fit shadow-lg">
-          <button onClick={() => setTab('stock')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'stock' ? 'bg-white text-[#2F5E58] shadow-md' : 'text-white/80 hover:bg-white/10'}`}>Stock</button>
-          <button onClick={() => setTab('counts')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'counts' ? 'bg-white text-[#2F5E58] shadow-md' : 'text-white/80 hover:bg-white/10'}`}>Conteos</button>
-          <button onClick={() => setTab('adjust')} className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'adjust' ? 'bg-white text-[#2F5E58] shadow-md' : 'text-white/80 hover:bg-white/10'}`}>Ajustes</button>
+          <button
+            onClick={() => setTab('stock')}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'stock' ? 'bg-white text-[#2F5E58] shadow-md' : 'text-white/80 hover:bg-white/10'}`}
+          >
+            Stock
+          </button>
+          <button
+            onClick={() => setTab('counts')}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'counts' ? 'bg-white text-[#2F5E58] shadow-md' : 'text-white/80 hover:bg-white/10'}`}
+          >
+            Conteos
+          </button>
+          <button
+            onClick={() => setTab('adjust')}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'adjust' ? 'bg-white text-[#2F5E58] shadow-md' : 'text-white/80 hover:bg-white/10'}`}
+          >
+            Ajustes
+          </button>
         </div>
 
         {loading ? (
@@ -329,6 +365,7 @@ export default function InventoryPage() {
           </div>
         ) : (
           <div className="flex-1">
+            {/* TAB: STOCK */}
             {tab === 'stock' && (
               <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
                 <table className="min-w-full">
@@ -362,12 +399,13 @@ export default function InventoryPage() {
               </div>
             )}
 
+            {/* TAB: CONTEOS */}
             {tab === 'counts' && (
               <div className="space-y-6">
-                <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-xl">
+                <div className="relative z-30 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-xl">
                   <h2 className="text-white text-lg font-extrabold mb-4">Registrar conteo físico</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="relative">
+                    <div className="relative z-10">
                       <input
                         type="text"
                         placeholder="Buscar producto..."
@@ -383,7 +421,7 @@ export default function InventoryPage() {
                         className="w-full bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40"
                       />
                       {showCountOptions && (
-                        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-[#1E293B] border border-white/20 rounded-xl shadow-2xl">
+                        <div className="absolute z-[100] mt-1 w-full max-h-60 overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-white/30 rounded-xl shadow-2xl">
                           {productOptions
                             .filter(p =>
                               p.name.toLowerCase().includes(countProductSearch.toLowerCase()) ||
@@ -404,19 +442,34 @@ export default function InventoryPage() {
                               >
                                 <div className="font-semibold">{p.name}</div>
                                 {(p.sku || p.barcode) && (
-                                  <div className="text-white/50 text-xs">
-                                    {p.sku || p.barcode}
-                                  </div>
+                                  <div className="text-white/50 text-xs">{p.sku || p.barcode}</div>
                                 )}
                               </button>
                             ))}
                         </div>
                       )}
                     </div>
-                    <input type="number" placeholder="Cantidad contada" value={countedQty} onChange={(e) => setCountedQty(e.target.value)} className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40" />
-                    <input type="text" placeholder="Nota (opcional)" value={countNotes} onChange={(e) => setCountNotes(e.target.value)} className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40" />
+                    <input
+                      type="number"
+                      placeholder="Cantidad contada"
+                      value={countedQty}
+                      onChange={(e) => setCountedQty(e.target.value)}
+                      className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Nota (opcional)"
+                      value={countNotes}
+                      onChange={(e) => setCountNotes(e.target.value)}
+                      className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40"
+                    />
                   </div>
-                  <button onClick={handleCount} className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold shadow-lg border border-white/20 hover:brightness-110 active:scale-[0.98] transition-all">Guardar conteo</button>
+                  <button
+                    onClick={handleCount}
+                    className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold shadow-lg border border-white/20 hover:brightness-110 active:scale-[0.98] transition-all"
+                  >
+                    Guardar conteo
+                  </button>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-xl">
@@ -429,9 +482,16 @@ export default function InventoryPage() {
                         <div key={c.id} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
                           <div>
                             <p className="text-white font-bold">{c.product_name}</p>
-                            <p className="text-white/60 text-sm">Esperado: {formatNumber(c.expected_quantity)} · Contado: {formatNumber(c.counted_quantity)} · Dif: {formatNumber(c.difference)}</p>
+                            <p className="text-white/60 text-sm">
+                              Esperado: {formatNumber(c.expected_quantity)} · Contado: {formatNumber(c.counted_quantity)} · Dif: {formatNumber(c.difference)}
+                            </p>
                           </div>
-                          <button onClick={() => handleApplyCount(c.id)} className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700">Aplicar ajuste</button>
+                          <button
+                            onClick={() => handleApplyCount(c.id)}
+                            className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700"
+                          >
+                            Aplicar ajuste
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -440,11 +500,12 @@ export default function InventoryPage() {
               </div>
             )}
 
+            {/* TAB: AJUSTES */}
             {tab === 'adjust' && (
-              <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-xl">
+              <div className="relative z-30 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-xl">
                 <h2 className="text-white text-lg font-extrabold mb-4">Ajuste manual de stock</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="relative">
+                  <div className="relative z-10">
                     <input
                       type="text"
                       placeholder="Buscar producto..."
@@ -460,7 +521,7 @@ export default function InventoryPage() {
                       className="w-full bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40"
                     />
                     {showAdjustOptions && (
-                      <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-[#1E293B] border border-white/20 rounded-xl shadow-2xl">
+                      <div className="absolute z-[100] mt-1 w-full max-h-60 overflow-y-auto bg-white/20 backdrop-blur-xl border border-white/30 rounded-xl shadow-2xl">
                         {productOptions
                           .filter(p =>
                             p.name.toLowerCase().includes(adjustProductSearch.toLowerCase()) ||
@@ -481,27 +542,46 @@ export default function InventoryPage() {
                             >
                               <div className="font-semibold">{p.name}</div>
                               {(p.sku || p.barcode) && (
-                                <div className="text-white/50 text-xs">
-                                  {p.sku || p.barcode}
-                                </div>
+                                <div className="text-white/50 text-xs">{p.sku || p.barcode}</div>
                               )}
                             </button>
                           ))}
                       </div>
                     )}
                   </div>
-                  <select value={adjustType} onChange={(e) => setAdjustType(e.target.value)} className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none">
-                    <option value="ajuste">Ajuste</option>
-                    <option value="rotura">Rotura</option>
-                    <option value="vencimiento">Vencimiento</option>
-                    <option value="regalo">Regalo</option>
-                    <option value="devolucion_proveedor">Devolución proveedor</option>
-                    <option value="otro">Otro</option>
+                  <select
+                    value={adjustType}
+                    onChange={(e) => setAdjustType(e.target.value)}
+                    className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none"
+                  >
+                    <option value="ajuste" className="text-gray-900">Ajuste</option>
+                    <option value="rotura" className="text-gray-900">Rotura</option>
+                    <option value="vencimiento" className="text-gray-900">Vencimiento</option>
+                    <option value="regalo" className="text-gray-900">Regalo</option>
+                    <option value="devolucion_proveedor" className="text-gray-900">Devolución proveedor</option>
+                    <option value="otro" className="text-gray-900">Otro</option>
                   </select>
-                  <input type="number" placeholder="Cantidad (+/-)" value={adjustQty} onChange={(e) => setAdjustQty(e.target.value)} className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40" />
+                  <input
+                    type="number"
+                    placeholder="Cantidad (+/-)"
+                    value={adjustQty}
+                    onChange={(e) => setAdjustQty(e.target.value)}
+                    className="bg-white/15 text-white border border-white/20 rounded-xl px-4 py-2.5 outline-none placeholder:text-white/40"
+                  />
                 </div>
-                <textarea placeholder="Motivo obligatorio" value={adjustNotes} onChange={(e) => setAdjustNotes(e.target.value)} className="w-full bg-white/15 text-white border border-white/20 rounded-xl px-4 py-3 mb-4 outline-none placeholder:text-white/40" rows={3} />
-                <button onClick={handleAdjust} className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold shadow-lg border border-white/20 hover:brightness-110 active:scale-[0.98] transition-all">Registrar ajuste</button>
+                <textarea
+                  placeholder="Motivo obligatorio"
+                  value={adjustNotes}
+                  onChange={(e) => setAdjustNotes(e.target.value)}
+                  className="w-full bg-white/15 text-white border border-white/20 rounded-xl px-4 py-3 mb-4 outline-none placeholder:text-white/40"
+                  rows={3}
+                />
+                <button
+                  onClick={handleAdjust}
+                  className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold shadow-lg border border-white/20 hover:brightness-110 active:scale-[0.98] transition-all"
+                >
+                  Registrar ajuste
+                </button>
               </div>
             )}
           </div>
