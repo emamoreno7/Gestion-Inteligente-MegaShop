@@ -27,12 +27,6 @@ const svgClass =
   'w-12 h-12 stroke-white fill-none stroke-[1.6] stroke-linecap-round stroke-linejoin-round'
 
 const ICONS = {
-  home: (
-    <svg className={svgClass} viewBox="0 0 24 24">
-      <path d="M4 11.5L12 4l8 7.5" />
-      <path d="M6 10v9a1 1 0 001 1h3v-6h4v6h3a1 1 0 001-1v-9" />
-    </svg>
-  ),
   pos: (
     <svg className={svgClass} viewBox="0 0 24 24">
       <path d="M8 8V6.5a4 4 0 018 0V8" />
@@ -67,29 +61,15 @@ const ICONS = {
       <path d="M3 4h2l2.2 11.2a2 2 0 002 1.6h8.1a2 2 0 002-1.6L20 8H6" />
     </svg>
   ),
-  branches: (
+  sales: (
     <svg className={svgClass} viewBox="0 0 24 24">
-      <path d="M4 21h16" />
-      <path d="M5 21V10.5L12 4l7 6.5V21" />
-      <path d="M10 21v-5.5h4V21" />
-      <path d="M9 10.5h.01M15 10.5h.01" />
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
     </svg>
   ),
   approvals: (
     <svg className={svgClass} viewBox="0 0 24 24">
       <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
       <path d="M9 12l2 2 4-4" />
-    </svg>
-  ),
-  sales: (
-    <svg className={svgClass} viewBox="0 0 24 24">
-      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-    </svg>
-  ),
-  settings: (
-    <svg className={`${svgClass} stroke-[2.2]`} viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="3.2" />
-      <path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5L5.4 5.4" />
     </svg>
   ),
   cash: (
@@ -99,19 +79,31 @@ const ICONS = {
       <path d="M7 9.5h.01M17 14.5h.01" />
     </svg>
   ),
+  branches: (
+    <svg className={svgClass} viewBox="0 0 24 24">
+      <path d="M4 21h16" />
+      <path d="M5 21V10.5L12 4l7 6.5V21" />
+      <path d="M10 21v-5.5h4V21" />
+      <path d="M9 10.5h.01M15 10.5h.01" />
+    </svg>
+  ),
+  settings: (
+    <svg className={`${svgClass} stroke-[2.2]`} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5L5.4 5.4" />
+    </svg>
+  ),
 }
 
 export default function DashboardPage() {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const loadDashboard = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/login')
       return
@@ -122,16 +114,21 @@ export default function DashboardPage() {
     let rawName = email.split('@')[0]
     let locationId: string | null = null
     let locationName = 'Rivadavia, Mendoza'
+    let roleName: string | null = null
 
     try {
       const { data: userRow } = await supabase
         .from('users')
-        .select('full_name, location_id')
+        .select('full_name, location_id, role:roles(name)')
         .eq('id', user.id)
         .single()
 
       if (userRow?.full_name) rawName = userRow.full_name
       if (userRow?.location_id) locationId = userRow.location_id
+
+      const roleData = Array.isArray(userRow?.role) ? userRow.role[0] : userRow?.role
+      roleName = roleData?.name || null
+      setRole(roleName)
 
       if (locationId) {
         const { data: loc } = await supabase
@@ -154,9 +151,7 @@ export default function DashboardPage() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending_approval')
       approvalsCount = count ?? 0
-    } catch {
-      // no romper
-    }
+    } catch {}
 
     let pendingCount = 0
     try {
@@ -165,9 +160,7 @@ export default function DashboardPage() {
         .select('*', { count: 'exact', head: true })
         .is('category_id', null)
       pendingCount += noCategoryCount ?? 0
-    } catch {
-      // no romper
-    }
+    } catch {}
 
     try {
       if (locationId) {
@@ -178,9 +171,7 @@ export default function DashboardPage() {
           .eq('price_status', 'pending')
         pendingCount += noPriceCount ?? 0
       }
-    } catch {
-      // no romper
-    }
+    } catch {}
 
     let todaySales = 0
     try {
@@ -195,9 +186,7 @@ export default function DashboardPage() {
       if (sales) {
         todaySales = sales.reduce((sum: number, s: { total: number }) => sum + (s.total || 0), 0)
       }
-    } catch {
-      // no romper
-    }
+    } catch {}
 
     const todaySalesFormatted = new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -238,20 +227,28 @@ export default function DashboardPage() {
     )
   }
 
-  const modules: AppTile[] = [
-    { name: 'Punto de venta', href: '/pos', gradient: 'from-[#F2A65A] to-[#E0783C]', icon: ICONS.pos },
-    { name: 'Stock', href: '/stock', gradient: 'from-[#6FB3D9] to-[#3E85B8]', icon: ICONS.stock },
-    { name: 'Pendientes', href: '/pending', badge: stats.pendingCount || undefined, gradient: 'from-[#F2C879] to-[#E0A63C]', icon: ICONS.pending },
-    { name: 'Catálogo', href: '/catalog', gradient: 'from-[#B99FE0] to-[#8B6BC4]', icon: ICONS.catalog },
-    { name: 'Importar', href: '/import', gradient: 'from-[#8FCB9E] to-[#5AA672]', icon: ICONS.import },
-    { name: 'Ventas', href: '/sales/history', gradient: 'from-[#6FCBA8] to-[#3E9D7A]', icon: ICONS.sales },
-    { name: 'Aprobaciones', href: '/approvals', badge: stats.approvalsCount || undefined, gradient: 'from-[#7FD1C6] to-[#3E9D91]', icon: ICONS.approvals },
-    { name: 'Caja', href: '/cash', gradient: 'from-[#F2B3A0] to-[#C96B4E]', icon: ICONS.cash },
-    { name: 'Sucursales', href: '/locations', gradient: 'from-[#E88FA3] to-[#C25E78]', icon: ICONS.branches },
-    { name: 'Configuración', href: '/settings', gradient: 'from-[#A8AEB8] to-[#767D89]', icon: ICONS.settings },
-  ]
+  const isDeposito = role === 'deposito'
 
-  const dockApps = [modules[0], modules[1], modules[3], modules[2], modules[7]]
+  const modules: AppTile[] = isDeposito
+    ? [
+        { name: 'Pendientes', href: '/pending', badge: stats.pendingCount || undefined, gradient: 'from-[#F2C879] to-[#E0A63C]', icon: ICONS.pending },
+        { name: 'Catálogo', href: '/catalog', gradient: 'from-[#B99FE0] to-[#8B6BC4]', icon: ICONS.catalog },
+        { name: 'Importar', href: '/import', gradient: 'from-[#8FCB9E] to-[#5AA672]', icon: ICONS.import },
+      ]
+    : [
+        { name: 'Punto de venta', href: '/pos', gradient: 'from-[#F2A65A] to-[#E0783C]', icon: ICONS.pos },
+        { name: 'Stock', href: '/stock', gradient: 'from-[#6FB3D9] to-[#3E85B8]', icon: ICONS.stock },
+        { name: 'Pendientes', href: '/pending', badge: stats.pendingCount || undefined, gradient: 'from-[#F2C879] to-[#E0A63C]', icon: ICONS.pending },
+        { name: 'Catálogo', href: '/catalog', gradient: 'from-[#B99FE0] to-[#8B6BC4]', icon: ICONS.catalog },
+        { name: 'Importar', href: '/import', gradient: 'from-[#8FCB9E] to-[#5AA672]', icon: ICONS.import },
+        { name: 'Ventas', href: '/sales/history', gradient: 'from-[#6FCBA8] to-[#3E9D7A]', icon: ICONS.sales },
+        { name: 'Aprobaciones', href: '/approvals', badge: stats.approvalsCount || undefined, gradient: 'from-[#7FD1C6] to-[#3E9D91]', icon: ICONS.approvals },
+        { name: 'Caja', href: '/cash', gradient: 'from-[#F2B3A0] to-[#C96B4E]', icon: ICONS.cash },
+        { name: 'Sucursales', href: '/locations', gradient: 'from-[#E88FA3] to-[#C25E78]', icon: ICONS.branches },
+        { name: 'Configuración', href: '/settings', gradient: 'from-[#A8AEB8] to-[#767D89]', icon: ICONS.settings },
+      ]
+
+  const dockApps = isDeposito ? modules : [modules[0], modules[1], modules[3], modules[2], modules[7]]
 
   const currentDate = new Date().toLocaleDateString('es-AR', {
     weekday: 'long',
@@ -270,7 +267,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen px-5 py-6 sm:px-8 md:px-12 lg:px-16 max-w-7xl mx-auto">
-        {/* Header Superior */}
         <header className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 text-white/90 font-semibold text-sm drop-shadow-md">
             <span>📍 {stats.locationName}</span>
@@ -304,8 +300,15 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* 1. Hero Widget */}
-        <section className="bg-white/15 backdrop-blur-2xl border border-white/25 rounded-3xl p-5 sm:p-7 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-5 shadow-2xl">
+        <div className="flex justify-center my-3 sm:my-4">
+          <img
+            src="/logo-mega-shop.png"
+            alt="Mega Shop Rivadavia"
+            className="h-16 sm:h-20 md:h-24 w-auto object-contain filter drop-shadow-[0_10px_15px_rgba(0,0,0,0.25)] select-none pointer-events-none transition-transform hover:scale-105 duration-300"
+          />
+        </div>
+
+        <section className="bg-white/15 backdrop-blur-2xl border border-white/25 rounded-3xl p-5 sm:p-7 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-5 shadow-2xl">
           <div>
             <h1 className="text-white text-2xl sm:text-3xl font-extrabold drop-shadow-lg">
               Hola, {stats.userName.split(' ')[0]} 👋
@@ -323,45 +326,36 @@ export default function DashboardPage() {
               <div className="text-amber-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.pendingCount}</div>
               <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Pendientes</div>
             </div>
-            <div className="h-10 w-px bg-white/20 hidden md:block" />
-            <div className="text-center">
-              <div className="text-teal-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.approvalsCount}</div>
-              <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Aprobaciones</div>
-            </div>
+            {!isDeposito && (
+              <>
+                <div className="h-10 w-px bg-white/20 hidden md:block" />
+                <div className="text-center">
+                  <div className="text-teal-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.approvalsCount}</div>
+                  <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Aprobaciones</div>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
-        {/* 2. LOGO CENTRAL (Más grande sin empujar los íconos) */}
-        <div className="flex justify-center my-1 sm:my-2">
-          <img
-            src="/logo-mega-shop.png"
-            alt="Mega Shop Rivadavia"
-            className="h-32 sm:h-44 md:h-56 lg:h-64 w-auto object-contain filter drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] select-none pointer-events-none transition-transform hover:scale-105 duration-300"
-          />
-        </div>
-
-        {/* 3. Main Grid de Íconos (Más grandes y más arriba) */}
-        <main className="flex-1 flex items-start justify-center pt-0 pb-24">
-          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-6 sm:gap-x-10 max-w-5xl w-full justify-items-center">
+        <main className="flex-1 flex items-center justify-center pb-28 pt-2">
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-4 sm:gap-x-8 max-w-4xl w-full justify-items-center">
             {modules.map((app) => (
-              <Link key={app.name} href={app.href} className="group flex flex-col items-center gap-3 transition-transform duration-200 active:scale-90 hover:scale-105">
-                <div className={`relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-[26px] sm:rounded-[32px] flex items-center justify-center shadow-xl bg-gradient-to-br ${app.gradient} border-t border-white/30 group-hover:shadow-2xl group-hover:brightness-110 transition-all duration-300`}>
-                  <div className="scale-110 sm:scale-125 md:scale-135">
-                    {app.icon}
-                  </div>
+              <Link key={app.name} href={app.href} className="group flex flex-col items-center gap-2.5 transition-transform duration-200 active:scale-90 hover:scale-105">
+                <div className={`relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-[22px] sm:rounded-3xl flex items-center justify-center shadow-xl bg-gradient-to-br ${app.gradient} border-t border-white/30 group-hover:shadow-2xl group-hover:brightness-110 transition-all duration-300`}>
+                  {app.icon}
                   {typeof app.badge === 'number' && app.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-[#E0533F] text-white text-xs font-extrabold min-w-[24px] h-[24px] rounded-full flex items-center justify-center border-2 border-white/90 shadow-md animate-pulse">
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#E0533F] text-white text-[11px] font-extrabold min-w-[22px] h-[22px] rounded-full flex items-center justify-center border-2 border-white/90 shadow-md animate-pulse">
                       {app.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-white text-xs sm:text-sm md:text-base font-semibold text-center drop-shadow-md leading-tight max-w-[110px]">{app.name}</span>
+                <span className="text-white text-xs sm:text-sm font-semibold text-center drop-shadow-md leading-tight max-w-[90px]">{app.name}</span>
               </Link>
             ))}
           </div>
         </main>
 
-        {/* Dock Flotante */}
         <footer className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
           <div className="flex gap-3 sm:gap-4 p-2.5 sm:p-3 bg-white/15 backdrop-blur-2xl border border-white/25 rounded-[22px] sm:rounded-3xl shadow-2xl">
             {dockApps.map((item) => (
