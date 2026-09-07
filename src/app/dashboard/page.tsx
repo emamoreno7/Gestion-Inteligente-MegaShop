@@ -316,44 +316,69 @@ export default function DashboardPage() {
             <p className="text-white/75 text-sm mt-1">Así viene el día en tu sucursal</p>
           </div>
 
-          <div className="flex flex-wrap gap-6 sm:gap-8 items-center">
-            <div className="text-center sm:text-right">
-              <div className="text-white text-2xl sm:text-3xl font-extrabold drop-shadow-lg tracking-tight">{stats.todaySalesFormatted}</div>
-              <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Ventas hoy</div>
+          {!isDeposito && (
+            <div className="flex flex-wrap gap-6 sm:gap-8 items-center">
+              <div className="text-center sm:text-right">
+                <div className="text-white text-2xl sm:text-3xl font-extrabold drop-shadow-lg tracking-tight">{stats.todaySalesFormatted}</div>
+                <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Ventas hoy</div>
+              </div>
+              <div className="h-10 w-px bg-white/20 hidden md:block" />
+              <div className="text-center">
+                <div className="text-amber-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.pendingCount}</div>
+                <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Pendientes</div>
+              </div>
+              <div className="h-10 w-px bg-white/20 hidden md:block" />
+              <div className="text-center">
+                <div className="text-teal-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.approvalsCount}</div>
+                <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Aprobaciones</div>
+              </div>
             </div>
-            <div className="h-10 w-px bg-white/20 hidden md:block" />
-            <div className="text-center">
-              <div className="text-amber-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.pendingCount}</div>
-              <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Pendientes</div>
+          )}
+
+          {isDeposito && (
+            <div className="flex flex-wrap gap-6 sm:gap-8 items-center">
+              <div className="text-center">
+                <div className="text-amber-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.pendingCount}</div>
+                <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Pendientes</div>
+              </div>
             </div>
-            {!isDeposito && (
-              <>
-                <div className="h-10 w-px bg-white/20 hidden md:block" />
-                <div className="text-center">
-                  <div className="text-teal-200 text-2xl sm:text-3xl font-extrabold drop-shadow-lg">{stats.approvalsCount}</div>
-                  <div className="text-white/65 text-[11px] font-semibold uppercase tracking-widest mt-0.5">Aprobaciones</div>
-                </div>
-              </>
-            )}
-          </div>
+          )}
         </section>
 
         <main className="flex-1 flex items-center justify-center pb-28 pt-2">
-          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-4 sm:gap-x-8 max-w-4xl w-full justify-items-center">
-            {modules.map((app) => (
-              <Link key={app.name} href={app.href} className="group flex flex-col items-center gap-2.5 transition-transform duration-200 active:scale-90 hover:scale-105">
-                <div className={`relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-[22px] sm:rounded-3xl flex items-center justify-center shadow-xl bg-gradient-to-br ${app.gradient} border-t border-white/30 group-hover:shadow-2xl group-hover:brightness-110 transition-all duration-300`}>
-                  {app.icon}
-                  {typeof app.badge === 'number' && app.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-[#E0533F] text-white text-[11px] font-extrabold min-w-[22px] h-[22px] rounded-full flex items-center justify-center border-2 border-white/90 shadow-md animate-pulse">
-                      {app.badge}
-                    </span>
-                  )}
-                </div>
-                <span className="text-white text-xs sm:text-sm font-semibold text-center drop-shadow-md leading-tight max-w-[90px]">{app.name}</span>
-              </Link>
-            ))}
-          </div>
+          {isDeposito ? (
+            <div className="flex flex-wrap justify-center gap-8">
+              {modules.map((app) => (
+                <Link key={app.name} href={app.href} className="group flex flex-col items-center gap-2.5 transition-transform duration-200 active:scale-90 hover:scale-105">
+                  <div className={`relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-[22px] sm:rounded-3xl flex items-center justify-center shadow-xl bg-gradient-to-br ${app.gradient} border-t border-white/30 group-hover:shadow-2xl group-hover:brightness-110 transition-all duration-300`}>
+                    {app.icon}
+                    {typeof app.badge === 'number' && app.badge > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-[#E0533F] text-white text-[11px] font-extrabold min-w-[22px] h-[22px] rounded-full flex items-center justify-center border-2 border-white/90 shadow-md animate-pulse">
+                        {app.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-white text-xs sm:text-sm font-semibold text-center drop-shadow-md leading-tight max-w-[90px]">{app.name}</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-8 gap-x-4 sm:gap-x-8 max-w-4xl w-full justify-items-center">
+              {modules.map((app) => (
+                <Link key={app.name} href={app.href} className="group flex flex-col items-center gap-2.5 transition-transform duration-200 active:scale-90 hover:scale-105">
+                  <div className={`relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-[22px] sm:rounded-3xl flex items-center justify-center shadow-xl bg-gradient-to-br ${app.gradient} border-t border-white/30 group-hover:shadow-2xl group-hover:brightness-110 transition-all duration-300`}>
+                    {app.icon}
+                    {typeof app.badge === 'number' && app.badge > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-[#E0533F] text-white text-[11px] font-extrabold min-w-[22px] h-[22px] rounded-full flex items-center justify-center border-2 border-white/90 shadow-md animate-pulse">
+                        {app.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-white text-xs sm:text-sm font-semibold text-center drop-shadow-md leading-tight max-w-[90px]">{app.name}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </main>
 
         <footer className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
