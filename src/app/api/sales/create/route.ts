@@ -46,7 +46,8 @@ export async function POST(req: NextRequest) {
 
     if (payment_method === 'mercadopago' || payment_method === 'transfer') {
       rpcName = 'create_pending_sale'
-      // No pasamos p_reference; la función usará el sale_id como referencia
+      rpcParams.p_idempotency_key = crypto.randomUUID()
+      // p_reference opcional, la función usa sale_id como referencia externa
     }
 
     const { data, error } = await supabase.rpc(rpcName, rpcParams)

@@ -22,8 +22,8 @@ export default function Navbar() {
             <Link href="/dashboard" className="text-white font-semibold">
               Dashboard
             </Link>
-            <Link href="/catalog" className="text-gray-300 hover:text-white">
-              Catálogo
+            <Link href="/cash" className="text-gray-300 hover:text-white">
+              Caja
             </Link>
             <Link href="/import" className="text-gray-300 hover:text-white">
               Importar
@@ -39,9 +39,6 @@ export default function Navbar() {
             </Link>
             <Link href="/pos" className="text-gray-300 hover:text-white">
               POS
-            </Link>
-            <Link href="/cash" className="text-gray-300 hover:text-white">
-              Caja
             </Link>
             <Link href="/sales/history" className="text-gray-300 hover:text-white">
               Ventas

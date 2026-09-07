@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
@@ -31,7 +31,6 @@ export async function GET() {
 
     const locationId = userData.location_id
 
-    // Sesión abierta
     const { data: session, error: sessionError } = await supabase
       .from('cash_sessions')
       .select('*')
@@ -42,69 +41,56 @@ export async function GET() {
     if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 })
 
     if (!session) {
-      return NextResponse.json({ session: null, movements: [] })
+      return NextResponse.json({
+        summary: {
+          cash_total: 0,
+          mercadopago_total: 0,
+          transfer_total: 0,
+          sales_count: 0,
+        },
+      })
     }
 
-    // Movimientos de caja reales (efectivo y operaciones manuales)
-    const { data: cashMovements, error: cashMovementsError } = await supabase
-      .from('cash_movements')
-      .select('*')
-      .eq('session_id', session.id)
-      .order('created_at', { ascending: false })
-
-    if (cashMovementsError) return NextResponse.json({ error: cashMovementsError.message }, { status: 500 })
-
-    // Ventas completadas de la sesión
     const { data: sales, error: salesError } = await supabase
       .from('sales')
-      .select('id, user_id, created_at')
+      .select('id')
       .eq('location_id', locationId)
       .gte('created_at', session.opened_at)
-      .in('status', ['completed'])
+      .eq('status', 'completed')
 
     if (salesError) return NextResponse.json({ error: salesError.message }, { status: 500 })
 
     const saleIds = (sales || []).map((s: any) => s.id)
 
-    let payments: any[] = []
+    let cashTotal = 0
+    let mercadopagoTotal = 0
+    let transferTotal = 0
 
     if (saleIds.length > 0) {
-      const { data: paymentsData, error: paymentsError } = await supabase
+      const { data: payments, error: paymentsError } = await supabase
         .from('payments')
-        .select('id, sale_id, method, amount, status, created_at')
+        .select('method, amount, status')
         .in('sale_id', saleIds)
         .eq('status', 'completed')
 
       if (paymentsError) return NextResponse.json({ error: paymentsError.message }, { status: 500 })
 
-      payments = paymentsData || []
+      for (const p of payments || []) {
+        if (p.method === 'cash') cashTotal += Number(p.amount)
+        else if (p.method === 'mercadopago') mercadopagoTotal += Number(p.amount)
+        else if (p.method === 'transfer') transferTotal += Number(p.amount)
+      }
     }
 
-    // Construir array combinado
-    const combined = [...(cashMovements || [])]
-
-    for (const p of payments) {
-      if (p.method === 'cash') continue // efectivo ya está en cash_movements
-
-      combined.push({
-        id: p.id,
-        movement_type: p.method,
-        amount: Number(p.amount),
-        notes: `Venta ${p.method === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}`,
-        created_at: p.created_at,
-        user_full_name: null,
-      })
-    }
-
-    // Ordenar por fecha descendente
-    combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-    return NextResponse.json({ session, movements: combined })
+    return NextResponse.json({
+      summary: {
+        cash_total: cashTotal,
+        mercadopago_total: mercadopagoTotal,
+        transfer_total: transferTotal,
+        sales_count: (sales || []).length,
+      },
+    })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
-}
-
-export async function POST(req: NextRequest) {
-  // ... el código POST actual se mantiene igual ...
 }

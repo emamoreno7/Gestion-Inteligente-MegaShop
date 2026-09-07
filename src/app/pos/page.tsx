@@ -292,10 +292,10 @@ export default function POSPage() {
               Pendientes
             </Link>
             <Link
-              href="/catalog"
+              href="/cash"
               className="px-3.5 py-2 rounded-full bg-white/15 backdrop-blur-xl border border-white/25 text-white text-xs font-semibold hover:bg-white/25 transition-all"
             >
-              Catálogo
+              Caja
             </Link>
           </div>
         </header>
