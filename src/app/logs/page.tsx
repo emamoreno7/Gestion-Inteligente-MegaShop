@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 
 type LogEntry = {
   id: string
@@ -22,6 +21,7 @@ export default function LogsPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filterSource, setFilterSource] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -55,12 +55,16 @@ export default function LogsPage() {
       <div className="flex gap-4 mb-4">
         <input
           type="text"
-          placeholder="Buscar..."
+          placeholder="Buscar por mensaje, ruta o usuario..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="bg-gray-800 border border-gray-600 rounded px-3 py-2"
+          className="bg-gray-800 border border-gray-600 rounded px-3 py-2 flex-1"
         />
-        <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className="bg-gray-800 border border-gray-600 rounded px-3 py-2">
+        <select
+          value={filterSource}
+          onChange={(e) => setFilterSource(e.target.value)}
+          className="bg-gray-800 border border-gray-600 rounded px-3 py-2"
+        >
           <option value="">Todos</option>
           <option value="frontend">Frontend</option>
           <option value="backend">Backend</option>
@@ -68,25 +72,56 @@ export default function LogsPage() {
       </div>
 
       {loading ? (
-        <p>Cargando...</p>
+        <p className="text-gray-400">Cargando...</p>
       ) : error ? (
         <p className="text-red-400">{error}</p>
       ) : filtered.length === 0 ? (
-        <p>No hay errores.</p>
+        <div className="bg-gray-800 rounded p-8 text-center text-gray-400">
+          No hay errores registrados.
+        </div>
       ) : (
-        <div className="space-y-2 max-h-[70vh] overflow-y-auto">
-          {filtered.map(log => (
-            <div key={log.id} className="p-3 bg-gray-800 rounded border border-gray-700">
-              <div className="flex justify-between">
-                <span className="font-bold">{log.message}</span>
-                <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleString('es-AR')}</span>
+        <div className="space-y-2 max-h-[75vh] overflow-y-auto pr-2">
+          {filtered.map(log => {
+            const isExpanded = expandedId === log.id
+            return (
+              <div key={log.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4 hover:bg-gray-750 transition-colors">
+                <div
+                  className="cursor-pointer"
+                  onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-white break-words">{log.message}</p>
+                      <div className="mt-1 text-sm text-gray-400 flex flex-wrap gap-x-3 gap-y-1">
+                        <span>{new Date(log.created_at).toLocaleString('es-AR')}</span>
+                        <span>· {log.user_name}</span>
+                        <span>· {log.source}</span>
+                        {log.route && <span>· {log.route}</span>}
+                      </div>
+                    </div>
+                    <svg
+                      className={`w-5 h-5 text-gray-500 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+
+                {isExpanded && log.stack && (
+                  <div className="mt-3 pt-3 border-t border-gray-700">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Detalle técnico</p>
+                    <pre className="text-xs text-red-300 bg-black/40 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-words">{log.stack}</pre>
+                  </div>
+                )}
               </div>
-              <div className="text-sm text-gray-300">
-                {log.user_name} · {log.source} · {log.route}
-              </div>
-              {log.stack && <pre className="mt-2 text-xs text-red-300 bg-gray-900 p-2 rounded overflow-x-auto">{log.stack}</pre>}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
