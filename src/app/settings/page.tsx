@@ -54,6 +54,9 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [userName, setUserName] = useState('Usuario')
   const [locationName, setLocationName] = useState('Sucursal')
+  const [surchargeEnabled, setSurchargeEnabled] = useState(false)
+  const [surchargePercentage, setSurchargePercentage] = useState(0)
+  const [savingSurcharge, setSavingSurcharge] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
@@ -93,6 +96,13 @@ export default function SettingsPage() {
       } else {
         setItems(data.categories || [])
       }
+              // Cargar recargo global
+              const surchargeRes = await fetch('/api/settings/surcharge')
+              const surchargeData = await surchargeRes.json()
+              if (surchargeRes.ok) {
+                setSurchargeEnabled(surchargeData.enabled)
+                setSurchargePercentage(surchargeData.percentage)
+              }
       setLoading(false)
     }
     load()
@@ -116,6 +126,29 @@ export default function SettingsPage() {
       setError(data.error || 'Error al guardar')
     } else {
       setSuccess('Márgenes actualizados correctamente.')
+    }
+  }
+  const handleSaveSurcharge = async () => {
+    setSavingSurcharge(true)
+    setError(null)
+    setSuccess(null)
+
+    const res = await fetch('/api/settings/surcharge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: surchargeEnabled,
+        percentage: surchargePercentage,
+      }),
+    })
+
+    const data = await res.json()
+    setSavingSurcharge(false)
+
+    if (!res.ok) {
+      setError(data.error || 'Error al guardar recargo')
+    } else {
+      setSuccess('Recargo global actualizado.')
     }
   }
 
@@ -326,6 +359,46 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
+                          {activeSection === 'margins' && (
+                <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 mb-4 shadow-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-white font-extrabold text-base sm:text-lg">Recargo global de importación</h3>
+                      <p className="text-white/60 text-xs mt-0.5">Se aplica después del margen por rubro.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={surchargeEnabled}
+                        onChange={(e) => setSurchargeEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:bg-emerald-400/60 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={surchargePercentage}
+                      onChange={(e) => setSurchargePercentage(parseFloat(e.target.value) || 0)}
+                      disabled={!surchargeEnabled}
+                      className="w-32 bg-black/20 border border-white/20 text-white rounded-xl px-4 py-2.5 outline-none focus:border-emerald-400 transition-all disabled:opacity-40"
+                    />
+                    <span className="text-white/80 font-bold">%</span>
+                    <button
+                      onClick={handleSaveSurcharge}
+                      disabled={savingSurcharge}
+                      className="ml-auto px-5 py-2.5 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white text-sm font-extrabold shadow-lg border border-white/20 hover:brightness-110 disabled:opacity-50"
+                    >
+                      {savingSurcharge ? 'Guardando...' : 'Guardar recargo'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
             {/* ===== SECCIÓN REAL: MÁRGENES ===== */}
             {activeSection === 'margins' && (
