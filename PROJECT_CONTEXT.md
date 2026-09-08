@@ -75,6 +75,8 @@
 - Stock inicial en alta manual de producto.
 - Logger de errores global (frontend) con vista `/logs`.
 - OCR con Gemini 3.6 Flash.
+- Logger de errores backend en endpoints críticos (ventas, caja, importación, inventario, pendientes).
+- Helper `logBackendError` y tabla `error_logs` con vista `/logs`.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
