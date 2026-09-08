@@ -6,11 +6,25 @@ import { classifyByKeywords } from '@/lib/classify'
 import { logBackendError } from '@/lib/logger-server'
 
 export async function POST(req: NextRequest) {
+  let supabase: any = null
+
   try {
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'GEMINI_API_KEY no configurada' }, { status: 500 })
     }
+
+    const cookieStore = await cookies()
+    supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll() },
+          setAll() {},
+        },
+      }
+    )
 
     const formData = await req.formData()
     const file = formData.get('file') as File
@@ -64,7 +78,7 @@ Si no podés leer un campo, usá null. No uses markdown. Solo JSON válido.`
     const parsed = JSON.parse(content)
 
     if (!parsed.products || !Array.isArray(parsed.products)) {
-      return NextResponse.json({ error: 'Respuesta inválida de Gemini' }, { status: 422 })
+      throw new Error('La respuesta no contiene una lista de productos válida')
     }
 
     const products = parsed.products.map((p: any) => ({
@@ -72,26 +86,24 @@ Si no podés leer un campo, usá null. No uses markdown. Solo JSON válido.`
       category: classifyByKeywords(p.name) || p.category || 'otros',
     }))
 
+    if (products.length === 0) {
+      await logBackendError(supabase, new Error('No se detectaron productos en la imagen'), {
+        route: '/api/import/ocr-gemini',
+        metadata: { mimeType, fileName: file.name },
+      })
+      return NextResponse.json({ error: 'No se detectaron productos en la imagen' }, { status: 422 })
+    }
+
     return NextResponse.json({ products })
   } catch (error: any) {
     console.error('Error en OCR Gemini:', error)
 
-    try {
-      const cookieStore = await cookies()
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() { return cookieStore.getAll() },
-            setAll() {},
-          },
-        }
-      )
-
-      await logBackendError(supabase, error, { route: '/api/import/ocr-gemini' })
-    } catch (loggingError) {
-      console.error('No se pudo registrar el error:', loggingError)
+    if (supabase) {
+      try {
+        await logBackendError(supabase, error, { route: '/api/import/ocr-gemini' })
+      } catch (loggingError) {
+        console.error('No se pudo registrar el error:', loggingError)
+      }
     }
 
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
