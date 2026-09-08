@@ -70,6 +70,8 @@
 - Edición inline de precios/costos para admin/encargado.
 - Columna de stock en catálogo.
 - Endpoint `/api/catalog/update`.
+- OCR con Google Gemini 3.6 Flash (`gemini-3.6-flash`) para remitos largos sin truncamiento.
+- Endpoint `/api/import/ocr-gemini`.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.

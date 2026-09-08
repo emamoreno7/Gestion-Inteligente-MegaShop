@@ -135,3 +135,8 @@
 - **Causa:** Se mostraba solo en el backend o en vista previa, no en tiempo real.
 - **Solución:** Se agregaron columnas Total Recargo y Final, y cálculo dinámico al cambiar el porcentaje.
 - **Archivos:** `src/app/import/page.tsx`, `src/app/settings/page.tsx`, `src/app/approvals/page.tsx`.
+## 2026-09-08 — Truncamiento de remitos en OCR
+- **Síntoma:** El OCR de Groq cortaba la lista de productos en remitos largos.
+- **Causa:** Límite de tokens del modelo de visión gratuito.
+- **Solución:** Se reemplazó por Google Gemini 3.6 Flash con mayor ventana y salida.
+- **Archivos:** `src/app/api/import/ocr-gemini/route.ts`, `src/app/import/page.tsx`.
