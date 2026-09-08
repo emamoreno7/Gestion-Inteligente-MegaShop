@@ -145,3 +145,8 @@
 - **Causa:** Faltaba campo en formulario y captura global de errores.
 - **Solución:** Se agregó stock inicial y logger con `error_logs` + `/logs`.
 - **Archivos:** `src/app/catalog/page.tsx`, `src/components/GlobalErrorLogger.tsx`, `src/app/api/log-error/route.ts`, `src/app/logs/page.tsx`.
+## 2026-09-08 — Logger de errores backend
+- **Síntoma:** Los errores de API/RPC no quedaban registrados para auditoría.
+- **Causa:** Solo se capturaban errores del frontend.
+- **Solución:** Se implementó `logBackendError` y se integró en endpoints críticos.
+- **Archivos:** `src/lib/logger-server.ts`, endpoints de ventas, caja, importación, inventario y pendientes.
