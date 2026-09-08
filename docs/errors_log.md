@@ -120,3 +120,8 @@
 - **Causa:** Faltaba endurecer la capa de base de datos para producción.
 - **Solución:** Se reescribieron todas las RPCs críticas con permisos, locks, auditoría e idempotencia. Se creó módulo de inventario completo.
 - **Archivos:** funciones en Supabase, endpoints `/api/*`, `src/app/inventory/page.tsx`.
+## 2026-09-07 — Recargo de importación
+- **Síntoma:** No se podía aplicar un recargo puntual por carga.
+- **Causa:** La lógica previa solo permitía margen por rubro o recargo global.
+- **Solución:** Se agregó recargo obligatorio en importaciones y aprobaciones.
+- **Archivos:** RPC `import_products`, RPC `approve_bulk_import`, endpoints y UI.

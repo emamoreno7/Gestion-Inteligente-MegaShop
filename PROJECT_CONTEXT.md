@@ -57,16 +57,18 @@
 - RPCs de inventario blindadas con autenticación, permisos y auditoría.
 - Endpoints de inventario: /api/inventory/count, /api/inventory/apply-count, /api/inventory/adjust.
 - Página /inventory con pestañas Stock, Conteos y Ajustes, y buscador moderno de productos.
+- Recargo de importación obligatorio por carga.
+- Aprobación exige recargo explícito (0-100%).
+- Se eliminaron versiones duplicadas de import_products y approve_bulk_import.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Pruebas integrales de inventario (conteo → ajuste → verificación).
-2. Reportes ejecutivos: ventas, ticket promedio, productos más vendidos, diferencias de caja.
-3. Integración real de Mercado Pago con webhook y QR.
-4. Dashboard ejecutivo con métricas en tiempo real.
+1. Ajuste global de precios en Settings con toggle y advertencia.
+2. Optimización de navegación (loading skeletons, caché).
+3. Pruebas integrales con los tres roles.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
