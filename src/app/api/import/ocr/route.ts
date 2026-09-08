@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       temperature: 0.1,
-      max_tokens: 4000,
+      max_tokens: 900,
     })
 
     let content = completion.choices[0]?.message?.content || '{}'
