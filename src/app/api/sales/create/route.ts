@@ -1,11 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logBackendError } from '@/lib/logger-server'
 
 export async function POST(req: NextRequest) {
+  let supabase: any = null
+
   try {
     const cookieStore = await cookies()
-    const supabase = createServerClient(
+    supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -47,19 +50,28 @@ export async function POST(req: NextRequest) {
     if (payment_method === 'mercadopago' || payment_method === 'transfer') {
       rpcName = 'create_pending_sale'
       rpcParams.p_idempotency_key = crypto.randomUUID()
-      // p_reference opcional, la función usa sale_id como referencia externa
     }
 
     const { data, error } = await supabase.rpc(rpcName, rpcParams)
 
     if (error) {
       console.error(`Error creando venta (${rpcName}):`, error)
+      await logBackendError(supabase, error, { route: '/api/sales/create' })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ data })
   } catch (error: any) {
     console.error('Error en sales/create:', error)
+
+    if (supabase) {
+      try {
+        await logBackendError(supabase, error, { route: '/api/sales/create' })
+      } catch (loggingError) {
+        console.error('No se pudo registrar el error:', loggingError)
+      }
+    }
+
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
 }

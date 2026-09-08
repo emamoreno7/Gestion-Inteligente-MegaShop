@@ -1,11 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logBackendError } from '@/lib/logger-server'
 
 export async function POST(req: NextRequest) {
+  let supabase: any = null
+
   try {
     const cookieStore = await cookies()
-    const supabase = createServerClient(
+    supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -47,11 +50,22 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('Error manual_stock_adjustment:', error)
+      await logBackendError(supabase, error, { route: '/api/inventory/adjust' })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ data })
   } catch (error: any) {
+    console.error('Error en inventory/adjust:', error)
+
+    if (supabase) {
+      try {
+        await logBackendError(supabase, error, { route: '/api/inventory/adjust' })
+      } catch (loggingError) {
+        console.error('No se pudo registrar el error:', loggingError)
+      }
+    }
+
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
 }

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { classifyByKeywords } from '@/lib/classify'
+import { logBackendError } from '@/lib/logger-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,6 +75,25 @@ Si no podés leer un campo, usá null. No uses markdown. Solo JSON válido.`
     return NextResponse.json({ products })
   } catch (error: any) {
     console.error('Error en OCR Gemini:', error)
+
+    try {
+      const cookieStore = await cookies()
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() { return cookieStore.getAll() },
+            setAll() {},
+          },
+        }
+      )
+
+      await logBackendError(supabase, error, { route: '/api/import/ocr-gemini' })
+    } catch (loggingError) {
+      console.error('No se pudo registrar el error:', loggingError)
+    }
+
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
 }

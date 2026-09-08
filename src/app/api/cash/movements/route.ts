@@ -1,11 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logBackendError } from '@/lib/logger-server'
 
 export async function GET() {
+  let supabase: any = null
+
   try {
     const cookieStore = await cookies()
-    const supabase = createServerClient(
+    supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -31,7 +34,6 @@ export async function GET() {
 
     const locationId = userData.location_id
 
-    // Sesión abierta
     const { data: session, error: sessionError } = await supabase
       .from('cash_sessions')
       .select('*')
@@ -45,7 +47,6 @@ export async function GET() {
       return NextResponse.json({ session: null, movements: [] })
     }
 
-    // Movimientos de caja reales (efectivo y operaciones manuales)
     const { data: cashMovements, error: cashMovementsError } = await supabase
       .from('cash_movements')
       .select('*')
@@ -54,7 +55,6 @@ export async function GET() {
 
     if (cashMovementsError) return NextResponse.json({ error: cashMovementsError.message }, { status: 500 })
 
-    // Ventas completadas de la sesión
     const { data: sales, error: salesError } = await supabase
       .from('sales')
       .select('id, user_id, created_at')
@@ -65,7 +65,6 @@ export async function GET() {
     if (salesError) return NextResponse.json({ error: salesError.message }, { status: 500 })
 
     const saleIds = (sales || []).map((s: any) => s.id)
-
     let payments: any[] = []
 
     if (saleIds.length > 0) {
@@ -76,15 +75,13 @@ export async function GET() {
         .eq('status', 'completed')
 
       if (paymentsError) return NextResponse.json({ error: paymentsError.message }, { status: 500 })
-
       payments = paymentsData || []
     }
 
-    // Construir array combinado
     const combined = [...(cashMovements || [])]
 
     for (const p of payments) {
-      if (p.method === 'cash') continue // efectivo ya está en cash_movements
+      if (p.method === 'cash') continue
 
       combined.push({
         id: p.id,
@@ -96,15 +93,76 @@ export async function GET() {
       })
     }
 
-    // Ordenar por fecha descendente
     combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return NextResponse.json({ session, movements: combined })
   } catch (error: any) {
+    console.error('Error en cash/movements GET:', error)
+
+    if (supabase) {
+      try {
+        await logBackendError(supabase, error, { route: '/api/cash/movements' })
+      } catch (loggingError) {
+        console.error('No se pudo registrar el error:', loggingError)
+      }
+    }
+
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
 }
 
 export async function POST(req: NextRequest) {
-  // ... el código POST actual se mantiene igual ...
+  let supabase: any = null
+
+  try {
+    const cookieStore = await cookies()
+    supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll() },
+          setAll() {},
+        },
+      }
+    )
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+    const { session_id, amount, movement_type, notes } = await req.json()
+    if (!session_id || !amount || !movement_type) {
+      return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
+    }
+
+    const idempotency_key = crypto.randomUUID()
+
+    const { data, error } = await supabase.rpc('register_cash_movement', {
+      p_session_id: session_id,
+      p_amount: amount,
+      p_movement_type: movement_type,
+      p_idempotency_key: idempotency_key,
+      p_notes: notes || null,
+    })
+
+    if (error) {
+      console.error('Error register_cash_movement:', error)
+      await logBackendError(supabase, error, { route: '/api/cash/movements' })
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ data })
+  } catch (error: any) {
+    console.error('Error en cash/movements POST:', error)
+
+    if (supabase) {
+      try {
+        await logBackendError(supabase, error, { route: '/api/cash/movements' })
+      } catch (loggingError) {
+        console.error('No se pudo registrar el error:', loggingError)
+      }
+    }
+
+    return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
+  }
 }
