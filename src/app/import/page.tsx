@@ -574,7 +574,7 @@ export default function ImportPage() {
 
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
                 {products.map((p, idx) => {
-                  const base = p.sale_price ?? 0
+                  const base = (p.sale_price && p.sale_price > 0) ? p.sale_price : (p.cost_price ?? 0)
                   const surcharge = surchargePercentage !== '' ? Number(surchargePercentage) : 0
                   const extra = base * (surcharge / 100)
                   const finalPrice = base * (1 + surcharge / 100)
