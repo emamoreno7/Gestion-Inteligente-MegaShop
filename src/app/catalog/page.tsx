@@ -423,11 +423,23 @@ export default function CatalogPage() {
                 <input name="cost_price" type="number" step="0.01" placeholder="0.00" className="w-full pl-8 pr-4 py-3 bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:bg-white/15 focus:border-white/40 outline-none transition-all" />
               </div>
               <div className="space-y-1.5 lg:col-start-1">
-                <label className="block text-xs font-bold text-white/80 uppercase tracking-wider ml-1">Precio de Venta</label>
-                <input name="sale_price" type="number" step="0.01" placeholder="0.00" className="w-full pl-8 pr-4 py-3 bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:bg-white/15 focus:border-white/40 outline-none transition-all" />
+                  <label className="block text-xs font-bold text-white/80 uppercase tracking-wider ml-1">Precio de Venta</label>
+                  <input name="sale_price" type="number" step="0.01" placeholder="0.00" className="w-full pl-8 pr-4 py-3 bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:bg-white/15 focus:border-white/40 outline-none transition-all" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-white/80 uppercase tracking-wider ml-1">Stock inicial</label>
+                  <input
+                    name="initial_stock"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-2xl focus:bg-white/15 focus:border-white/40 outline-none transition-all"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex justify-end border-t border-white/15 pt-4">
+
+              <div className="flex justify-end border-t border-white/15 pt-4">
               <button type="submit" disabled={saving} className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold text-sm shadow-lg border border-white/20 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 transition-all">
                 {saving ? 'Guardando...' : 'Guardar producto'}
               </button>
