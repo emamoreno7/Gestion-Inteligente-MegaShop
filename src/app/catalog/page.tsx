@@ -39,10 +39,15 @@ export default function CatalogPage() {
   const [editingPrices, setEditingPrices] = useState<Record<string, { cost_price?: number; sale_price?: number; stock?: number }>>({})
   const [role, setRole] = useState<string | null>(null)
 
-  // Para modal de ajuste de stock
+  // Modal stock
   const [adjustProduct, setAdjustProduct] = useState<Product | null>(null)
   const [adjustNewStock, setAdjustNewStock] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
+
+  // Historial
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null)
+  const [historyData, setHistoryData] = useState<{ movements: any[]; price_events: any[] } | null>(null)
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -69,11 +74,9 @@ export default function CatalogPage() {
       return
     }
 
-    // Categorías
     const { data: catData } = await supabase.from('categories').select('id, name').order('name')
     setCategories(catData || [])
 
-    // Productos con datos comerciales
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -87,8 +90,8 @@ export default function CatalogPage() {
       console.error(error)
     } else {
       const productIds = (data || []).map((row: any) => row.id)
-
       let stockMap = new Map()
+
       if (productIds.length > 0) {
         const { data: stockData, error: stockError } = await supabase
           .from('stock_levels')
@@ -114,8 +117,12 @@ export default function CatalogPage() {
           barcode: row.barcode,
           category_id: row.category_id,
           category_name: cat?.name || null,
-          cost_price: pld?.cost_price ?? null,
-          sale_price: pld?.sale_price ?? null,
+          cost_price: pld?.cost_price !== null && pld?.cost_price !== undefined
+            ? Number(Number(pld.cost_price).toFixed(2))
+            : null,
+          sale_price: pld?.sale_price !== null && pld?.sale_price !== undefined
+            ? Number(Number(pld.sale_price).toFixed(2))
+            : null,
           price_status: pld?.price_status ?? null,
           stock: stockMap.get(row.id) ?? 0,
         }
@@ -221,7 +228,7 @@ export default function CatalogPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         product_id: productId,
-        sale_price: changes.sale_price,
+        sale_price: Number(Number(changes.sale_price).toFixed(2)),
       }),
     })
 
@@ -279,6 +286,26 @@ export default function CatalogPage() {
     } else {
       setAdjustProduct(null)
       await loadProducts()
+    }
+  }
+
+  const openHistory = async (product: Product) => {
+    setHistoryProduct(product)
+    setLoadingHistory(true)
+    setHistoryData(null)
+
+    try {
+      const res = await fetch(`/api/products/history?product_id=${product.id}`)
+      const data = await res.json()
+      if (res.ok) {
+        setHistoryData({ movements: data.movements || [], price_events: data.price_events || [] })
+      } else {
+        alert(data.error || 'Error al cargar historial')
+      }
+    } catch (e) {
+      alert('Error al cargar historial')
+    } finally {
+      setLoadingHistory(false)
     }
   }
 
@@ -412,7 +439,7 @@ export default function CatalogPage() {
                     <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Venta</th>
                     <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white/70">Stock</th>
                     <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white/70">Estado</th>
-                    {canEdit && <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Acciones</th>}
+                    <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -445,7 +472,7 @@ export default function CatalogPage() {
                                 value={edited?.sale_price ?? p.sale_price ?? ''}
                                 onChange={(e) => {
                                   const value = parseFloat(e.target.value)
-                                  setEditingPrices(prev => ({ ...prev, [p.id]: { ...prev[p.id], sale_price: isNaN(value) ? undefined : value } }))
+                                  setEditingPrices(prev => ({ ...prev, [p.id]: { ...prev[p.id], sale_price: isNaN(value) ? undefined : Number(value.toFixed(2)) } }))
                                 }}
                                 className="w-28 bg-black/20 border border-white/15 text-white rounded-xl px-2 py-1 text-xs text-right"
                               />
@@ -467,9 +494,9 @@ export default function CatalogPage() {
                           )}
                         </td>
                         <td className="px-4 py-3.5 text-center">{statusBadge(p.price_status)}</td>
-                        {canEdit && (
-                          <td className="px-4 py-3.5 text-right">
-                            {edited?.sale_price !== undefined && (
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {canEdit && edited?.sale_price !== undefined && (
                               <button
                                 onClick={() => handleSavePrice(p.id)}
                                 className="px-3 py-1.5 rounded-xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white text-xs font-extrabold shadow border border-white/20 hover:brightness-110"
@@ -477,8 +504,14 @@ export default function CatalogPage() {
                                 Guardar precio
                               </button>
                             )}
-                          </td>
-                        )}
+                            <button
+                              onClick={() => openHistory(p)}
+                              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold"
+                            >
+                              Historial
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     )
                   })}
@@ -517,6 +550,71 @@ export default function CatalogPage() {
                 {saving ? 'Guardando...' : 'Guardar ajuste'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal historial */}
+      {historyProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl p-6 w-full max-w-lg shadow-2xl max-h-[80vh] overflow-y-auto">
+            <h2 className="text-white text-xl font-extrabold mb-3">Historial de {historyProduct.name}</h2>
+
+            {loadingHistory ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-3" />
+                <span className="text-white/70 text-sm">Cargando historial...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-white/70 text-xs font-bold uppercase tracking-wider mb-2">Movimientos de stock</h3>
+                  {historyData?.movements?.length ? (
+                    <div className="space-y-2">
+                      {historyData.movements.map((m: any) => (
+                        <div key={m.id} className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm">
+                          <div className="text-white font-semibold">
+                            {m.movement_type} · {m.quantity_change > 0 ? '+' : ''}{m.quantity_change}
+                          </div>
+                          <div className="text-white/60 text-xs mt-1">
+                            {m.notes || 'Sin nota'} · {m.user?.full_name || 'Usuario'} · {new Date(m.created_at).toLocaleString('es-AR')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-white/50 text-sm">Sin movimientos.</p>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-white/70 text-xs font-bold uppercase tracking-wider mb-2">Cambios de precio</h3>
+                  {historyData?.price_events?.length ? (
+                    <div className="space-y-2">
+                      {historyData.price_events.map((e: any) => (
+                        <div key={e.id} className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm">
+                          <div className="text-white font-semibold">Precio actualizado</div>
+                          <div className="text-white/60 text-xs mt-1">
+                            {e.details?.sale_price
+                              ? `Nuevo precio: $${Number(e.details.sale_price).toFixed(2)}`
+                              : 'Detalles no disponibles'} · {e.user?.full_name || 'Usuario'} · {new Date(e.created_at).toLocaleString('es-AR')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-white/50 text-sm">Sin cambios de precio registrados.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setHistoryProduct(null)}
+              className="mt-6 w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       )}
