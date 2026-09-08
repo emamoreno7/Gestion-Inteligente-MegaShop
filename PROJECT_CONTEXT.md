@@ -66,6 +66,10 @@
 - Recargo por carga con cálculo en tiempo real en auditoría.
 - Columnas Total Recargo y Final en modal de importación.
 - Checkbox de aceptación destildado por defecto.
+- Catálogo mejorado con filtros por rubro, stock y orden.
+- Edición inline de precios/costos para admin/encargado.
+- Columna de stock en catálogo.
+- Endpoint `/api/catalog/update`.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.

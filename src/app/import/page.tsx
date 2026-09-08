@@ -265,7 +265,7 @@ export default function ImportPage() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const res = await fetch('/api/import/ocr', {
+      const res = await fetch('/api/import/ocr-gemini', {
         method: 'POST',
         body: formData,
       })
