@@ -125,3 +125,8 @@
 - **Causa:** La lógica previa solo permitía margen por rubro o recargo global.
 - **Solución:** Se agregó recargo obligatorio en importaciones y aprobaciones.
 - **Archivos:** RPC `import_products`, RPC `approve_bulk_import`, endpoints y UI.
+## 2026-09-08 — Ajuste global de precios
+- **Síntoma:** No existía una herramienta para aplicar un recargo masivo a todo el stock.
+- **Causa:** Solo se podía ajustar por carga o por margen.
+- **Solución:** Se creó RPC `apply_global_surcharge`, endpoint `/api/settings/global-surcharge` y modal de advertencia en Settings.
+- **Archivos:** RPC en Supabase, endpoint, `src/app/settings/page.tsx`.
