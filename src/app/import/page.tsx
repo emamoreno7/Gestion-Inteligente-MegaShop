@@ -671,12 +671,22 @@ export default function ImportPage() {
                           placeholder="0"
                         />
                       </div>
-                    ) : (
-                      <p className="text-white/60 text-sm">
-                        El recargo lo definirá el encargado/admin al aprobar esta carga.
-                      </p>
-                    )}
-                  </div>
+                                          ) : (
+                                            <p className="text-white/60 text-sm">
+                                              El recargo lo definirá el encargado/admin al aprobar esta carga.
+                                            </p>
+                                          )}
+                    
+                                          <label className="flex items-center gap-3">
+                                            <input
+                                              type="checkbox"
+                                              checked={acceptedCheck}
+                                              onChange={(e) => setAcceptedCheck(e.target.checked)}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-white/80 text-sm">Revisé los detalles y acepto ingresar esta mercadería al stock.</span>
+                                          </label>
+                                        </div>
                   <div className="flex gap-3 shrink-0">
                     <button onClick={() => setShowAuditModal(false)} className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold">Cancelar</button>
                     <button onClick={confirmSave} disabled={saving || !acceptedCheck} className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold disabled:opacity-50">
