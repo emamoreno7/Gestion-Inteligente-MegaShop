@@ -36,8 +36,13 @@ export default function CatalogPage() {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterStock, setFilterStock] = useState('')
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'price'>('recent')
-  const [editingPrices, setEditingPrices] = useState<Record<string, { cost_price?: number; sale_price?: number }>>({})
+  const [editingPrices, setEditingPrices] = useState<Record<string, { cost_price?: number; sale_price?: number; stock?: number }>>({})
   const [role, setRole] = useState<string | null>(null)
+
+  // Para modal de ajuste de stock
+  const [adjustProduct, setAdjustProduct] = useState<Product | null>(null)
+  const [adjustNewStock, setAdjustNewStock] = useState('')
+  const [adjustReason, setAdjustReason] = useState('')
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -68,7 +73,7 @@ export default function CatalogPage() {
     const { data: catData } = await supabase.from('categories').select('id, name').order('name')
     setCategories(catData || [])
 
-    // Productos con datos comerciales y stock
+    // Productos con datos comerciales
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -208,7 +213,7 @@ export default function CatalogPage() {
 
   const handleSavePrice = async (productId: string) => {
     const changes = editingPrices[productId]
-    if (!changes) return
+    if (!changes || changes.sale_price === undefined) return
 
     setSaving(true)
     const res = await fetch('/api/catalog/update', {
@@ -216,7 +221,6 @@ export default function CatalogPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         product_id: productId,
-        cost_price: changes.cost_price,
         sale_price: changes.sale_price,
       }),
     })
@@ -225,7 +229,7 @@ export default function CatalogPage() {
     setSaving(false)
 
     if (!res.ok) {
-      alert(data.error || 'Error al guardar')
+      alert(data.error || 'Error al guardar precio')
     } else {
       setEditingPrices(prev => {
         const next = { ...prev }
@@ -233,6 +237,48 @@ export default function CatalogPage() {
         return next
       })
       loadProducts()
+    }
+  }
+
+  const handleOpenStockAdjust = (product: Product) => {
+    setAdjustProduct(product)
+    setAdjustNewStock(String(product.stock))
+    setAdjustReason('')
+  }
+
+  const handleSaveStockAdjust = async () => {
+    if (!adjustProduct) return
+    const newStock = parseFloat(adjustNewStock)
+    if (isNaN(newStock) || newStock < 0) {
+      alert('Stock inválido')
+      return
+    }
+    const reason = adjustReason.trim()
+    if (!reason) {
+      alert('Debes ingresar un motivo')
+      return
+    }
+
+    setSaving(true)
+    const res = await fetch('/api/inventory/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: adjustProduct.id,
+        quantity_change: newStock - adjustProduct.stock,
+        adjustment_type: 'ajuste',
+        notes: reason,
+      }),
+    })
+
+    const data = await res.json()
+    setSaving(false)
+
+    if (!res.ok) {
+      alert(data.error || 'Error al ajustar stock')
+    } else {
+      setAdjustProduct(null)
+      await loadProducts()
     }
   }
 
@@ -386,51 +432,51 @@ export default function CatalogPage() {
                         <td className="px-4 py-3.5 text-center">
                           <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white/80">{p.category_name || 'sin rubro'}</span>
                         </td>
-                        <td className="px-4 py-3.5 text-right">
-                          {canEdit ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={edited?.cost_price ?? p.cost_price ?? ''}
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value)
-                                setEditingPrices(prev => ({ ...prev, [p.id]: { ...prev[p.id], cost_price: isNaN(value) ? undefined : value } }))
-                              }}
-                              className="w-28 bg-black/20 border border-white/15 text-white rounded-xl px-2 py-1 text-xs text-right"
-                            />
-                          ) : (
-                            <span className="text-white/80">${formatMoney(p.cost_price ?? 0)}</span>
-                          )}
+                        <td className="px-4 py-3.5 text-right text-sm text-white/80">
+                          ${formatMoney(p.cost_price ?? 0)}
                         </td>
                         <td className="px-4 py-3.5 text-right">
                           {canEdit ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={edited?.sale_price ?? p.sale_price ?? ''}
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value)
-                                setEditingPrices(prev => ({ ...prev, [p.id]: { ...prev[p.id], sale_price: isNaN(value) ? undefined : value } }))
-                              }}
-                              className="w-28 bg-black/20 border border-white/15 text-white rounded-xl px-2 py-1 text-xs text-right"
-                            />
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-white/70">$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={edited?.sale_price ?? p.sale_price ?? ''}
+                                onChange={(e) => {
+                                  const value = parseFloat(e.target.value)
+                                  setEditingPrices(prev => ({ ...prev, [p.id]: { ...prev[p.id], sale_price: isNaN(value) ? undefined : value } }))
+                                }}
+                                className="w-28 bg-black/20 border border-white/15 text-white rounded-xl px-2 py-1 text-xs text-right"
+                              />
+                            </div>
                           ) : (
                             <span className="text-white font-extrabold drop-shadow-sm">${formatMoney(p.sale_price ?? 0)}</span>
                           )}
                         </td>
                         <td className="px-4 py-3.5 text-center">
-                          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold border ${p.stock <= 0 ? 'bg-rose-500/20 text-rose-100 border-rose-300/30' : p.stock <= 5 ? 'bg-amber-400/20 text-amber-100 border-amber-300/30' : 'bg-emerald-400/20 text-emerald-100 border-emerald-300/30'}`}>{p.stock}</span>
+                          {canEdit ? (
+                            <button
+                              onClick={() => handleOpenStockAdjust(p)}
+                              className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold border bg-white/10 text-white hover:bg-white/20"
+                            >
+                              {p.stock}
+                            </button>
+                          ) : (
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold border ${p.stock <= 0 ? 'bg-rose-500/20 text-rose-100 border-rose-300/30' : p.stock <= 5 ? 'bg-amber-400/20 text-amber-100 border-amber-300/30' : 'bg-emerald-400/20 text-emerald-100 border-emerald-300/30'}`}>{p.stock}</span>
+                          )}
                         </td>
                         <td className="px-4 py-3.5 text-center">{statusBadge(p.price_status)}</td>
                         {canEdit && (
                           <td className="px-4 py-3.5 text-right">
-                            <button
-                              onClick={() => handleSavePrice(p.id)}
-                              disabled={!editingPrices[p.id]}
-                              className="px-3 py-1.5 rounded-xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white text-xs font-extrabold shadow border border-white/20 hover:brightness-110 disabled:opacity-40"
-                            >
-                              Guardar
-                            </button>
+                            {edited?.sale_price !== undefined && (
+                              <button
+                                onClick={() => handleSavePrice(p.id)}
+                                className="px-3 py-1.5 rounded-xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white text-xs font-extrabold shadow border border-white/20 hover:brightness-110"
+                              >
+                                Guardar precio
+                              </button>
+                            )}
                           </td>
                         )}
                       </tr>
@@ -442,6 +488,38 @@ export default function CatalogPage() {
           )}
         </div>
       </div>
+
+      {/* Modal ajuste de stock */}
+      {adjustProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-white text-xl font-extrabold mb-2">Ajustar stock</h2>
+            <p className="text-white/70 text-sm mb-4">{adjustProduct.name}</p>
+            <label className="block text-[10px] font-bold uppercase text-white/60 mb-1">Nuevo stock</label>
+            <input
+              type="number"
+              min="0"
+              value={adjustNewStock}
+              onChange={(e) => setAdjustNewStock(e.target.value)}
+              className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 mb-3"
+            />
+            <label className="block text-[10px] font-bold uppercase text-white/60 mb-1">Motivo</label>
+            <textarea
+              value={adjustReason}
+              onChange={(e) => setAdjustReason(e.target.value)}
+              className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 mb-4"
+              rows={2}
+              placeholder="Ej: ajuste por inventario"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setAdjustProduct(null)} className="flex-1 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white">Cancelar</button>
+              <button onClick={handleSaveStockAdjust} disabled={saving} className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-bold disabled:opacity-50">
+                {saving ? 'Guardando...' : 'Guardar ajuste'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
