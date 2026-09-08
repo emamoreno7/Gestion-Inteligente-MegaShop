@@ -15,6 +15,7 @@ type Product = {
   cost_price: number | null
   price_status: string | null
   stock: number
+  updated_at: string | null
 }
 
 type Category = {
@@ -82,7 +83,7 @@ export default function CatalogPage() {
       .select(`
         id, name, sku, barcode, category_id, created_at,
         category:categories(name),
-        product_location_data!inner ( cost_price, sale_price, price_status )
+        product_location_data!inner ( cost_price, sale_price, price_status, updated_at )
       `)
       .eq('product_location_data.location_id', locId)
 
@@ -123,8 +124,9 @@ export default function CatalogPage() {
           sale_price: pld?.sale_price !== null && pld?.sale_price !== undefined
             ? Number(Number(pld.sale_price).toFixed(2))
             : null,
-          price_status: pld?.price_status ?? null,
-          stock: stockMap.get(row.id) ?? 0,
+            price_status: pld?.price_status ?? null,
+            stock: stockMap.get(row.id) ?? 0,
+            updated_at: pld?.updated_at ?? row.created_at ?? null,
         }
       })
 
@@ -242,6 +244,11 @@ export default function CatalogPage() {
     .sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name)
       if (sortBy === 'price') return (a.sale_price ?? 0) - (b.sale_price ?? 0)
+      if (sortBy === 'recent') {
+        const da = a.updated_at ? new Date(a.updated_at).getTime() : 0
+        const db = b.updated_at ? new Date(b.updated_at).getTime() : 0
+        return db - da
+      }
       return 0
     })
 
