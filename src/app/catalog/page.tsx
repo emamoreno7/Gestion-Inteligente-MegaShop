@@ -148,6 +148,7 @@ export default function CatalogPage() {
     const barcode = formData.get('barcode') as string
     const sale_price = parseFloat(formData.get('sale_price') as string)
     const cost_price = parseFloat(formData.get('cost_price') as string)
+    const initial_stock = parseFloat(formData.get('initial_stock') as string) || 0
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -161,6 +162,7 @@ export default function CatalogPage() {
       return
     }
 
+    // 1. Crear producto
     const { data: newProduct, error: productError } = await supabase
       .from('products')
       .insert({
@@ -178,6 +180,7 @@ export default function CatalogPage() {
       return
     }
 
+    // 2. Crear datos comerciales
     const { error: pldError } = await supabase
       .from('product_location_data')
       .insert({
@@ -190,11 +193,35 @@ export default function CatalogPage() {
 
     if (pldError) {
       alert('Producto creado, pero falló guardar el precio: ' + pldError.message)
-    } else {
-      form.reset()
-      setShowForm(false)
-      loadProducts()
+      setSaving(false)
+      return
     }
+
+    // 3. Cargar stock inicial si corresponde
+    if (initial_stock > 0) {
+      const { error: stockError } = await supabase
+        .from('stock_movements')
+        .insert({
+          location_id: locationId,
+          product_id: newProduct.id,
+          quantity_change: initial_stock,
+          movement_type: 'entrada',
+          reference_id: null,
+          notes: 'Alta manual de producto',
+          performed_by: user.id,
+        })
+
+      if (stockError) {
+        alert('Producto creado, pero falló cargar stock: ' + stockError.message)
+        setSaving(false)
+        return
+      }
+    }
+
+    form.reset()
+    setShowForm(false)
+    await loadProducts()
+
     setSaving(false)
   }
 
