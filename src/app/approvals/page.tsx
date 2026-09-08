@@ -40,6 +40,7 @@ export default function ApprovalsPage() {
     action: 'approve' | 'reject'
   } | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [surchargePercentage, setSurchargePercentage] = useState<number | ''>('')
   const supabase = useMemo(() => createClient(), [])
 
   const loadPending = async () => {
@@ -79,6 +80,11 @@ export default function ApprovalsPage() {
   }
 
   const handleApprove = async (id: string) => {
+    if (surchargePercentage === '' || isNaN(Number(surchargePercentage))) {
+      setError('Debes indicar el recargo de esta carga (puede ser 0).')
+      return
+    }
+
     setError(null)
     setSuccess(null)
     setProcessing(true)
@@ -86,7 +92,10 @@ export default function ApprovalsPage() {
     const res = await fetch('/api/import/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bulkImportId: id }),
+      body: JSON.stringify({
+        bulkImportId: id,
+        surchargePercentage: Number(surchargePercentage),
+      }),
     })
 
     const data = await res.json()
@@ -539,15 +548,33 @@ export default function ApprovalsPage() {
                   </div>
                 </div>
               )}
+                            {confirmAction.action === 'approve' && (
+                <div className="mb-4">
+                  <label className="block text-white/70 text-sm mb-1">Recargo de esta carga (%) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={surchargePercentage}
+                    onChange={(e) => setSurchargePercentage(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 outline-none focus:border-emerald-400"
+                    placeholder="0"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3">
-                <button
-                  onClick={() => setConfirmAction(null)}
-                  disabled={processing}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold transition-all disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
+              <button
+                    onClick={() => {
+                      setConfirmAction(null)
+                      setSurchargePercentage('')
+                    }}
+                    disabled={processing}
+                    className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold transition-all disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
                 <button
                   onClick={() => {
                     if (confirmAction.action === 'approve') {

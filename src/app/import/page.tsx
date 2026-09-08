@@ -42,6 +42,8 @@ export default function ImportPage() {
   const [saving, setSaving] = useState(false)
   const [acceptedCheck, setAcceptedCheck] = useState(false)
   const [omitMap, setOmitMap] = useState<Record<number, boolean>>({})
+  const [surchargePercentage, setSurchargePercentage] = useState<number | ''>('')
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -53,7 +55,21 @@ export default function ImportPage() {
   }
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
+      // Rol del usuario
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('role:roles(name)')
+          .eq('id', user.id)
+          .single()
+
+        const roleData = Array.isArray(userRow?.role) ? userRow.role[0] : userRow?.role
+        setUserRole(roleData?.name || null)
+      }
+
+      // Categorías
       const { data, error } = await supabase.from('categories').select('id, name')
       if (error) {
         console.warn('Error cargando categorías:', error.message)
@@ -61,7 +77,7 @@ export default function ImportPage() {
         setCategories(data)
       }
     }
-    loadCategories()
+    loadData()
   }, [supabase])
 
   const normalizeNumber = (value: any): number | null => {
@@ -320,6 +336,16 @@ export default function ImportPage() {
         sourceHash = await calculateHash(fileInput.files[0])
       }
 
+      // Validar recargo si no es depósito
+      if (userRole !== 'deposito') {
+        if (surchargePercentage === '' || isNaN(Number(surchargePercentage))) {
+          throw new Error('Debes indicar el recargo de esta carga (puede ser 0).')
+        }
+        if (Number(surchargePercentage) < 0 || Number(surchargePercentage) > 100) {
+          throw new Error('El recargo debe estar entre 0 y 100.')
+        }
+      }
+
       const res = await fetch('/api/import/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -328,6 +354,8 @@ export default function ImportPage() {
           importType,
           fileName,
           sourceHash,
+          surchargePercentage:
+            userRole !== 'deposito' ? Number(surchargePercentage) : null,
         }),
       })
 
@@ -629,10 +657,25 @@ export default function ImportPage() {
                         </span>
                       ))}
                     </div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" checked={acceptedCheck} onChange={(e) => setAcceptedCheck(e.target.checked)} />
-                      <span className="text-white/80 text-sm">Revisé los detalles y acepto ingresar esta mercadería al stock.</span>
-                    </label>
+                    {userRole !== 'deposito' ? (
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-white/60">Recargo de esta carga (%) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={surchargePercentage}
+                          onChange={(e) => setSurchargePercentage(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-32 bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-white/60 text-sm">
+                        El recargo lo definirá el encargado/admin al aprobar esta carga.
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-3 shrink-0">
                     <button onClick={() => setShowAuditModal(false)} className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold">Cancelar</button>

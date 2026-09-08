@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     const locationId = userData.location_id || '00000000-0000-0000-0000-000000000001'
 
     const body = await req.json()
-    const { products, importType, fileName, sourceHash } = body
+    const { products, importType, fileName, sourceHash, surchargePercentage } = body
 
     if (!products || !Array.isArray(products) || products.length === 0) {
       return NextResponse.json({ error: 'No products' }, { status: 400 })
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       p_filename: fileName || 'import',
       p_import_type: importType || 'csv',
       p_source_hash: sourceHash || null,
+      p_surcharge_percentage: surchargePercentage ?? null,
     })
 
     if (error) {
