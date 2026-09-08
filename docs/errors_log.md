@@ -130,3 +130,8 @@
 - **Causa:** Solo se podía ajustar por carga o por margen.
 - **Solución:** Se creó RPC `apply_global_surcharge`, endpoint `/api/settings/global-surcharge` y modal de advertencia en Settings.
 - **Archivos:** RPC en Supabase, endpoint, `src/app/settings/page.tsx`.
+## 2026-09-08 — Recargo en auditoría
+- **Síntoma:** El recargo no se visualizaba en el modal de auditoría.
+- **Causa:** Se mostraba solo en el backend o en vista previa, no en tiempo real.
+- **Solución:** Se agregaron columnas Total Recargo y Final, y cálculo dinámico al cambiar el porcentaje.
+- **Archivos:** `src/app/import/page.tsx`, `src/app/settings/page.tsx`, `src/app/approvals/page.tsx`.

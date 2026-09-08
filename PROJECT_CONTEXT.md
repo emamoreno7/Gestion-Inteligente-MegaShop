@@ -63,15 +63,19 @@
 - Ajuste global de precios en Settings con toggle, advertencia y RPC `apply_global_surcharge`.
 - Recargo por carga obligatorio en importaciones y aprobaciones.
 - RPC `approve_bulk_import` y `import_products` unificadas y blindadas.
+- Recargo por carga con cálculo en tiempo real en auditoría.
+- Columnas Total Recargo y Final en modal de importación.
+- Checkbox de aceptación destildado por defecto.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Pruebas integrales de roles, precios y stock.
-2. Optimización de navegación (loading skeletons).
-3. Integración real de Mercado Pago con webhook.
+1. Prueba de humo completa con los tres roles.
+2. Ajuste global de precios en Settings.
+3. Optimización de navegación (loading skeletons).
+4. Integración real de Mercado Pago con webhook.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
