@@ -336,7 +336,6 @@ export default function ImportPage() {
         sourceHash = await calculateHash(fileInput.files[0])
       }
 
-      // Validar recargo si no es depósito
       if (userRole !== 'deposito') {
         if (surchargePercentage === '' || isNaN(Number(surchargePercentage))) {
           throw new Error('Debes indicar el recargo de esta carga (puede ser 0).')
@@ -378,6 +377,7 @@ export default function ImportPage() {
       setShowAuditModal(false)
       setAcceptedCheck(false)
       setOmitMap({})
+      setSurchargePercentage('')
     } catch (e: any) {
       setError(e.message || 'Error al guardar')
     } finally {
@@ -507,15 +507,15 @@ export default function ImportPage() {
                 <p className="text-white/70 text-sm mt-0.5">Se detectaron {products.length} filas en {fileName}</p>
               </div>
               <button
-                  onClick={() => {
-                    setAcceptedCheck(false)
-                    setSurchargePercentage('')
-                    setShowAuditModal(true)
-                  }}
-                  className="px-6 py-3 rounded-2xl bg-white text-[#2F5E58] font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
-                >
-                  Auditar y Guardar →
-                </button>
+                onClick={() => {
+                  setAcceptedCheck(false)
+                  setSurchargePercentage('')
+                  setShowAuditModal(true)
+                }}
+                className="px-6 py-3 rounded-2xl bg-white text-[#2F5E58] font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
+              >
+                Auditar y Guardar →
+              </button>
             </div>
 
             <div className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
@@ -528,8 +528,7 @@ export default function ImportPage() {
                       <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white/70">Código</th>
                       <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white/70">Rubro</th>
                       <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Costo Unit.</th>
-                        <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Total Recargo</th>
-                        <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Final</th>
+                      <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Venta Unit.</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
@@ -548,24 +547,11 @@ export default function ImportPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right text-white/90 text-sm">
-                            {p.cost_price !== undefined && p.cost_price !== null ? `$${formatCurrency(p.cost_price)}` : '-'}
-                          </td>
-                          <td className="px-4 py-3.5 text-right text-white/90 text-sm">
-                            {(() => {
-                              const base = p.sale_price ?? 0
-                              const surcharge = surchargePercentage !== '' ? Number(surchargePercentage) : 0
-                              const extra = base * (surcharge / 100)
-                              return extra > 0 ? `$${formatCurrency(extra)}` : '-'
-                            })()}
-                          </td>
-                          <td className="px-4 py-3.5 text-right text-white font-bold text-sm">
-                            {(() => {
-                              const base = p.sale_price ?? 0
-                              const surcharge = surchargePercentage !== '' ? Number(surchargePercentage) : 0
-                              const final = base * (1 + surcharge / 100)
-                              return final > 0 ? `$${formatCurrency(final)}` : '-'
-                            })()}
-                          </td>
+                          {p.cost_price !== undefined && p.cost_price !== null ? `$${formatCurrency(p.cost_price)}` : '-'}
+                        </td>
+                        <td className="px-4 py-3.5 text-right text-white font-bold text-sm">
+                          {p.sale_price !== undefined && p.sale_price !== null ? `$${formatCurrency(p.sale_price)}` : '-'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -587,81 +573,100 @@ export default function ImportPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
-                {products.map((p, idx) => (
-                  <div key={idx} className={`p-4 rounded-2xl border ${omitMap[idx] ? 'bg-white/5 border-white/5 opacity-40 grayscale' : 'bg-white/10 border-white/20 shadow-md'}`}>
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={!omitMap[idx]}
-                        onChange={() => toggleOmit(idx)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <p className="text-white font-bold mb-2">{p.name}</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-white/60">Cantidad</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={p.quantity || 1}
-                              onChange={(e) => {
-                                const updated = [...products]
-                                updated[idx] = { ...updated[idx], quantity: parseQuantity(e.target.value) }
-                                setProducts(updated)
-                              }}
-                              className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-white/60">Rubro</label>
-                            <select
-                              value={toSlug(p.category || 'otros')}
-                              onChange={(e) => {
-                                const updated = [...products]
-                                updated[idx] = { ...updated[idx], category: e.target.value }
-                                setProducts(updated)
-                              }}
-                              className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
-                            >
-                              {categories.map(c => (
-                                <option key={c.id} value={toSlug(c.name)} className="text-gray-900">{c.name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-white/60">Costo Unit.</label>
-                            <input
-                              type="text"
-                              value={p.cost_price !== undefined && p.cost_price !== null ? String(p.cost_price) : ''}
-                              onChange={(e) => {
-                                const num = normalizeNumber(e.target.value)
-                                const updated = [...products]
-                                updated[idx] = { ...updated[idx], cost_price: num }
-                                setProducts(updated)
-                              }}
-                              className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold uppercase text-white/60">Venta Unit.</label>
-                            <input
-                              type="text"
-                              value={p.sale_price !== undefined && p.sale_price !== null ? String(p.sale_price) : ''}
-                              onChange={(e) => {
-                                const num = normalizeNumber(e.target.value)
-                                const updated = [...products]
-                                updated[idx] = { ...updated[idx], sale_price: num }
-                                setProducts(updated)
-                              }}
-                              className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
-                            />
+                {products.map((p, idx) => {
+                  const base = p.sale_price ?? 0
+                  const surcharge = surchargePercentage !== '' ? Number(surchargePercentage) : 0
+                  const extra = base * (surcharge / 100)
+                  const finalPrice = base * (1 + surcharge / 100)
+
+                  return (
+                    <div key={idx} className={`p-4 rounded-2xl border ${omitMap[idx] ? 'bg-white/5 border-white/5 opacity-40 grayscale' : 'bg-white/10 border-white/20 shadow-md'}`}>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={!omitMap[idx]}
+                          onChange={() => toggleOmit(idx)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="text-white font-bold mb-2">{p.name}</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-white/60">Cantidad</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={p.quantity || 1}
+                                onChange={(e) => {
+                                  const updated = [...products]
+                                  updated[idx] = { ...updated[idx], quantity: parseQuantity(e.target.value) }
+                                  setProducts(updated)
+                                }}
+                                className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-white/60">Rubro</label>
+                              <select
+                                value={toSlug(p.category || 'otros')}
+                                onChange={(e) => {
+                                  const updated = [...products]
+                                  updated[idx] = { ...updated[idx], category: e.target.value }
+                                  setProducts(updated)
+                                }}
+                                className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
+                              >
+                                {categories.map(c => (
+                                  <option key={c.id} value={toSlug(c.name)} className="text-gray-900">{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-white/60">Costo Unit.</label>
+                              <input
+                                type="text"
+                                value={p.cost_price !== undefined && p.cost_price !== null ? String(p.cost_price) : ''}
+                                onChange={(e) => {
+                                  const num = normalizeNumber(e.target.value)
+                                  const updated = [...products]
+                                  updated[idx] = { ...updated[idx], cost_price: num }
+                                  setProducts(updated)
+                                }}
+                                className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-white/60">Venta Unit.</label>
+                              <input
+                                type="text"
+                                value={p.sale_price !== undefined && p.sale_price !== null ? String(p.sale_price) : ''}
+                                onChange={(e) => {
+                                  const num = normalizeNumber(e.target.value)
+                                  const updated = [...products]
+                                  updated[idx] = { ...updated[idx], sale_price: num }
+                                  setProducts(updated)
+                                }}
+                                className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-white/60">Total Recargo</label>
+                              <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm">
+                                {extra > 0 ? `$${formatCurrency(extra)}` : '-'}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-white/60">Final</label>
+                              <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-bold text-sm">
+                                {finalPrice > 0 ? `$${formatCurrency(finalPrice)}` : '-'}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="px-6 py-5 border-t border-white/15 bg-black/20 rounded-b-[2rem] shrink-0">
@@ -689,22 +694,22 @@ export default function ImportPage() {
                           placeholder="0"
                         />
                       </div>
-                                          ) : (
-                                            <p className="text-white/60 text-sm">
-                                              El recargo lo definirá el encargado/admin al aprobar esta carga.
-                                            </p>
-                                          )}
-                    
-                                          <label className="flex items-center gap-3">
-                                            <input
-                                              type="checkbox"
-                                              checked={acceptedCheck}
-                                              onChange={(e) => setAcceptedCheck(e.target.checked)}
-                                              className="mt-1"
-                                            />
-                                            <span className="text-white/80 text-sm">Revisé los detalles y acepto ingresar esta mercadería al stock.</span>
-                                          </label>
-                                        </div>
+                    ) : (
+                      <p className="text-white/60 text-sm">
+                        El recargo lo definirá el encargado/admin al aprobar esta carga.
+                      </p>
+                    )}
+
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={acceptedCheck}
+                        onChange={(e) => setAcceptedCheck(e.target.checked)}
+                        className="mt-1"
+                      />
+                      <span className="text-white/80 text-sm">Revisé los detalles y acepto ingresar esta mercadería al stock.</span>
+                    </label>
+                  </div>
                   <div className="flex gap-3 shrink-0">
                     <button onClick={() => setShowAuditModal(false)} className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold">Cancelar</button>
                     <button onClick={confirmSave} disabled={saving || !acceptedCheck} className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold disabled:opacity-50">
