@@ -507,11 +507,15 @@ export default function ImportPage() {
                 <p className="text-white/70 text-sm mt-0.5">Se detectaron {products.length} filas en {fileName}</p>
               </div>
               <button
-                onClick={() => setShowAuditModal(true)}
-                className="px-6 py-3 rounded-2xl bg-white text-[#2F5E58] font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
-              >
-                Auditar y Guardar →
-              </button>
+                  onClick={() => {
+                    setAcceptedCheck(false)
+                    setSurchargePercentage('')
+                    setShowAuditModal(true)
+                  }}
+                  className="px-6 py-3 rounded-2xl bg-white text-[#2F5E58] font-extrabold text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
+                >
+                  Auditar y Guardar →
+                </button>
             </div>
 
             <div className="flex-1 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
@@ -524,7 +528,8 @@ export default function ImportPage() {
                       <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white/70">Código</th>
                       <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white/70">Rubro</th>
                       <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Costo Unit.</th>
-                      <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Venta Unit.</th>
+                        <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Total Recargo</th>
+                        <th className="px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-white/70">Final</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
@@ -543,11 +548,24 @@ export default function ImportPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right text-white/90 text-sm">
-                          {p.cost_price !== undefined && p.cost_price !== null ? `$${formatCurrency(p.cost_price)}` : '-'}
-                        </td>
-                        <td className="px-4 py-3.5 text-right text-white font-bold text-sm">
-                          {p.sale_price !== undefined && p.sale_price !== null ? `$${formatCurrency(p.sale_price)}` : '-'}
-                        </td>
+                            {p.cost_price !== undefined && p.cost_price !== null ? `$${formatCurrency(p.cost_price)}` : '-'}
+                          </td>
+                          <td className="px-4 py-3.5 text-right text-white/90 text-sm">
+                            {(() => {
+                              const base = p.sale_price ?? 0
+                              const surcharge = surchargePercentage !== '' ? Number(surchargePercentage) : 0
+                              const extra = base * (surcharge / 100)
+                              return extra > 0 ? `$${formatCurrency(extra)}` : '-'
+                            })()}
+                          </td>
+                          <td className="px-4 py-3.5 text-right text-white font-bold text-sm">
+                            {(() => {
+                              const base = p.sale_price ?? 0
+                              const surcharge = surchargePercentage !== '' ? Number(surchargePercentage) : 0
+                              const final = base * (1 + surcharge / 100)
+                              return final > 0 ? `$${formatCurrency(final)}` : '-'
+                            })()}
+                          </td>
                       </tr>
                     ))}
                   </tbody>
