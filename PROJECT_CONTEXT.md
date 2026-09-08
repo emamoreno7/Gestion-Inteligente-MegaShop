@@ -72,16 +72,18 @@
 - Endpoint `/api/catalog/update`.
 - OCR con Google Gemini 3.6 Flash (`gemini-3.6-flash`) para remitos largos sin truncamiento.
 - Endpoint `/api/import/ocr-gemini`.
+- Stock inicial en alta manual de producto.
+- Logger de errores global (frontend) con vista `/logs`.
+- OCR con Gemini 3.6 Flash.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Prueba de humo completa con los tres roles.
-2. Ajuste global de precios en Settings.
-3. Optimización de navegación (loading skeletons).
-4. Integración real de Mercado Pago con webhook.
+1. Logger backend para errores de API/RPC.
+2. Prueba integral con datos reales en local.
+3. Ajuste global de precios en Settings.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.

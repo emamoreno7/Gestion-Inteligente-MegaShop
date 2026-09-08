@@ -140,3 +140,8 @@
 - **Causa:** Límite de tokens del modelo de visión gratuito.
 - **Solución:** Se reemplazó por Google Gemini 3.6 Flash con mayor ventana y salida.
 - **Archivos:** `src/app/api/import/ocr-gemini/route.ts`, `src/app/import/page.tsx`.
+## 2026-09-08 — Stock inicial y logger
+- **Síntoma:** No se podía cargar stock al crear producto manual ni auditar errores de frontend.
+- **Causa:** Faltaba campo en formulario y captura global de errores.
+- **Solución:** Se agregó stock inicial y logger con `error_logs` + `/logs`.
+- **Archivos:** `src/app/catalog/page.tsx`, `src/components/GlobalErrorLogger.tsx`, `src/app/api/log-error/route.ts`, `src/app/logs/page.tsx`.
