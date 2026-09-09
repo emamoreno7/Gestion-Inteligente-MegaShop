@@ -44,6 +44,7 @@ export default function ImportPage() {
   const [omitMap, setOmitMap] = useState<Record<number, boolean>>({})
   const [surchargePercentage, setSurchargePercentage] = useState<number | ''>('')
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [similarityMap, setSimilarityMap] = useState<Record<number, any[]>>({})
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -52,6 +53,23 @@ export default function ImportPage() {
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+  const detectSimilarProducts = async (rows: ProductRow[]) => {
+    setSimilarityMap({})
+    const names = rows.map(r => r.name)
+    try {
+      const res = await fetch('/api/products/find-similar-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names }),
+      })
+      const data = await res.json()
+      if (res.ok && data.results) {
+        setSimilarityMap(data.results)
+      }
+    } catch (e) {
+      console.error('Error detectando similitudes:', e)
+    }
   }
 
   useEffect(() => {
@@ -241,9 +259,10 @@ export default function ImportPage() {
             }
           })
 
-        const classified = await classifyProducts(normalized)
-        setProducts(classified)
-        setImportType(file.name.endsWith('.csv') ? 'csv' : 'excel')
+          const classified = await classifyProducts(normalized)
+          setProducts(classified)
+          setImportType(file.name.endsWith('.csv') ? 'csv' : 'excel')
+          await detectSimilarProducts(classified)
       } else {
         setError('Formato no soportado. Usa CSV o Excel.')
       }
@@ -287,6 +306,7 @@ export default function ImportPage() {
 
         setProducts(productsFromOCR)
         setImportType('ocr')
+        await detectSimilarProducts(productsFromOCR)
       } else {
         setError('No se pudieron extraer productos. Revisa la imagen o intenta con otra.')
       }
@@ -539,7 +559,21 @@ export default function ImportPage() {
                             {p.quantity || 1}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-white font-semibold text-sm">{p.name}</td>
+                        <td className="px-4 py-3.5 text-white font-semibold text-sm">
+  {p.name}
+  {similarityMap[idx] && similarityMap[idx].length > 0 && (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {similarityMap[idx].slice(0, 3).map((sim: any) => (
+        <span
+          key={sim.id}
+          className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/30 text-amber-100 text-[10px] font-bold"
+        >
+          Similar: {sim.name}
+        </span>
+      ))}
+    </div>
+  )}
+</td>
                         <td className="px-4 py-3.5 text-white/70 text-sm">{p.sku || p.barcode || '-'}</td>
                         <td className="px-4 py-3.5">
                           <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10 border border-white/15 text-white/80">
