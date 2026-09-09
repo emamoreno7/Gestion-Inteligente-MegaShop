@@ -77,15 +77,19 @@
 - OCR con Gemini 3.6 Flash.
 - Logger de errores backend en endpoints críticos (ventas, caja, importación, inventario, pendientes).
 - Helper `logBackendError` y tabla `error_logs` con vista `/logs`.
+- Fusión manual de productos similares durante la importación.
+- Endpoint `/api/import/save` soporta `merges`.
+- Función RPC `import_products` actualizada para procesar fusiones atómicamente.
+- UI en vista previa para fusionar productos con existentes.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Logger backend para errores de API/RPC.
-2. Prueba integral con datos reales en local.
-3. Ajuste global de precios en Settings.
+1. Pruebas integrales con datos reales y roles.
+2. Posible automatización de fusión por umbral de similitud.
+3. Mejoras de UX en el modal de fusión.
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.
