@@ -44,6 +44,7 @@ export default function ImportPage() {
   const [omitMap, setOmitMap] = useState<Record<number, boolean>>({})
   const [surchargePercentage, setSurchargePercentage] = useState<number | ''>('')
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [mergeInfo, setMergeInfo] = useState<Record<number, { existingProductId: string; existingName: string }>>({})
   const [similarityMap, setSimilarityMap] = useState<Record<number, any[]>>({})
 
   const supabase = useMemo(() => createClient(), [])
@@ -70,6 +71,23 @@ export default function ImportPage() {
     } catch (e) {
       console.error('Error detectando similitudes:', e)
     }
+  }
+  const handleMerge = (idx: number, sim: any) => {
+    setMergeInfo(prev => ({
+      ...prev,
+      [idx]: {
+        existingProductId: sim.id,
+        existingName: sim.name,
+      },
+    }))
+  }
+
+  const handleUndoMerge = (idx: number) => {
+    setMergeInfo(prev => {
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
   }
 
   useEffect(() => {
@@ -345,8 +363,22 @@ export default function ImportPage() {
     setSuccess(null)
 
     try {
-      const productsToSave = products.filter((_, idx) => !omitMap[idx])
-      if (productsToSave.length === 0) {
+      const productsToInsert: ProductRow[] = []
+      const merges: { existing_product_id: string; product: ProductRow }[] = []
+
+      for (let i = 0; i < products.length; i++) {
+        if (omitMap[i]) continue
+        if (mergeInfo[i]) {
+          merges.push({
+            existing_product_id: mergeInfo[i].existingProductId,
+            product: products[i],
+          })
+        } else {
+          productsToInsert.push(products[i])
+        }
+      }
+
+      if (productsToInsert.length === 0 && merges.length === 0) {
         throw new Error('No hay productos seleccionados para guardar.')
       }
 
@@ -369,7 +401,8 @@ export default function ImportPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          products: productsToSave,
+          products: productsToInsert,
+          merges,
           importType,
           fileName,
           sourceHash,
@@ -387,7 +420,8 @@ export default function ImportPage() {
       if (status === 'pending_approval') {
         setSuccess('Carga enviada para aprobación del encargado/admin.')
       } else if (status === 'completed') {
-        setSuccess(`Se importaron ${productsToSave.length} productos y se actualizó el stock.`)
+        const total = productsToInsert.length + merges.length
+        setSuccess(`Se importaron ${productsToInsert.length} productos y se fusionaron ${merges.length}. Stock actualizado.`)
       } else {
         setSuccess('Operación completada.')
       }
@@ -398,6 +432,8 @@ export default function ImportPage() {
       setAcceptedCheck(false)
       setOmitMap({})
       setSurchargePercentage('')
+      setMergeInfo({})
+      setSimilarityMap({})
     } catch (e: any) {
       setError(e.message || 'Error al guardar')
     } finally {
@@ -624,6 +660,28 @@ export default function ImportPage() {
                         />
                         <div className="flex-1">
                           <p className="text-white font-bold mb-2">{p.name}</p>
+                          {similarityMap[idx] && similarityMap[idx].length > 0 && !mergeInfo[idx] && (
+  <div className="mb-2">
+    <p className="text-[10px] font-bold uppercase text-amber-300 mb-1">Posibles duplicados:</p>
+    <div className="flex flex-wrap gap-1">
+      {similarityMap[idx].slice(0, 3).map((sim: any) => (
+        <button
+          key={sim.id}
+          onClick={() => handleMerge(idx, sim)}
+          className="inline-flex items-center px-2 py-1 rounded-full bg-amber-400/20 border border-amber-300/30 text-amber-100 text-[10px] font-bold hover:bg-amber-400/30 transition-colors"
+        >
+          Fusionar con {sim.name}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+{mergeInfo[idx] && (
+  <div className="mb-2 px-3 py-2 rounded-xl bg-green-500/20 border border-green-400/30 text-green-200 text-xs font-bold flex items-center justify-between">
+    <span>Fusionado con: {mergeInfo[idx].existingName}</span>
+    <button onClick={() => handleUndoMerge(idx)} className="text-white/70 hover:text-white text-xs underline">Deshacer</button>
+  </div>
+)}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                               <label className="text-[10px] font-bold uppercase text-white/60">Cantidad</label>
