@@ -27,6 +27,8 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
     } else {
+      // Registrar el ingreso en la bitácora de actividad
+      fetch('/api/activity/login', { method: 'POST' }).catch(() => {})
       router.push('/dashboard')
       router.refresh()
     }

@@ -1,6 +1,6 @@
 # Contexto del Proyecto — Mega Shop Rivadavia
 
-## Estado actual (última actualización: 2026-09-01)
+## Estado actual (última actualización: 2026-09-10)
 
 ### Completado
 - Esquema de base de datos en Supabase (todas las tablas, roles, permisos, ubicación piloto, RLS temporal).
@@ -81,6 +81,12 @@
 - Endpoint `/api/import/save` soporta `merges`.
 - Función RPC `import_products` actualizada para procesar fusiones atómicamente.
 - UI en vista previa para fusionar productos con existentes.
+- Registro de actividad de usuarios (auditoría): ingresos al sistema y modificaciones (precios, stock, caja, cobros, ventas).
+- Tabla `user_activity_logs` con `action`, `description`, `details` (jsonb) y `created_at`.
+- Helper `logUserActivity` (`src/lib/activity-server.ts`) que registra de forma silenciosa sin interrumpir la operación principal.
+- Endpoints `/api/activity` (GET, protegido para owner_admin/encargado) y `/api/activity/login` (POST).
+- Integración de registro en endpoints de mutación: login, import/save, import/approve, inventory/adjust, catalog/update, cash/open, cash/close y sales/create.
+- Sección `/logs` con dos pestañas: "Errores" (original) y "Actividad de usuarios" con badge por tipo de acción, buscador, filtro y detalle expandible.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.

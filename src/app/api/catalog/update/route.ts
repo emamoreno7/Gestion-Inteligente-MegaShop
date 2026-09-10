@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logUserActivity } from '@/lib/activity-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,6 +60,12 @@ export async function POST(req: NextRequest) {
       .eq('location_id', userData.location_id)
 
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+    await logUserActivity(supabase, 'precio', 'Edición de precios', {
+      product_id,
+      cost_price: cost_price ?? null,
+      sale_price: sale_price ?? null,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { logBackendError } from '@/lib/logger-server'
+import { logUserActivity } from '@/lib/activity-server'
 
 export async function POST(req: NextRequest) {
   let supabase: any = null
@@ -59,6 +60,11 @@ export async function POST(req: NextRequest) {
       await logBackendError(supabase, error, { route: '/api/sales/create' })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    await logUserActivity(supabase, 'venta', 'Nueva venta / cobro', {
+      payment_method,
+      items_count: items.length,
+    })
 
     return NextResponse.json({ data })
   } catch (error: any) {
