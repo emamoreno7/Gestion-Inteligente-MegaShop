@@ -96,99 +96,111 @@ export default function InventoryPage() {
 
     setLocationId(locId)
 
-    // Productos con datos comerciales
-     const { data: pldData, error: pldError } = await supabase
-       .from('product_location_data')
-       .select(`
-         product_id,
-         min_stock,
-         sale_price,
-         cost_price,
-         product:products!inner (
-           id,
-           name,
-           sku,
-           barcode
-         )
-       `)
-       .eq('location_id', locId)
-       .eq('product.is_active', true)
-       .order('product_id')
+          // Las 3 queries son independientes entre sí (solo dependen de locId)
+      const [pldResult, stockResult, pendingResult] = await Promise.all([
+        supabase
+          .from('product_location_data')
+          .select(`
+            product_id,
+            min_stock,
+            sale_price,
+            cost_price,
+            product:products!inner (
+              id,
+              name,
+              sku,
+              barcode
+            )
+          `)
+          .eq('location_id', locId)
+          .eq('product.is_active', true)
+          .order('product_id'),
+        supabase
+          .from('stock_levels')
+          .select('product_id, quantity')
+          .eq('location_id', locId),
+        supabase
+          .from('stock_counts')
+          .select(`
+            id,
+            product_id,
+            expected_quantity,
+            counted_quantity,
+            difference,
+            created_at,
+            product:products!inner(name)
+          `)
+          .eq('location_id', locId)
+          .eq('status', 'pending_adjustment')
+          .order('created_at', { ascending: false }),
+      ])
 
-    if (pldError) {
-      setError(pldError.message)
-      setLoading(false)
-      return
-    }
-
-    // Stock actual
-    const { data: stockData, error: stockError } = await supabase
-      .from('stock_levels')
-      .select('product_id, quantity')
-      .eq('location_id', locId)
-
-    if (stockError) {
-      setError(stockError.message)
-      setLoading(false)
-      return
-    }
-
-    const stockMap = new Map(stockData.map((s: any) => [s.product_id, s.quantity]))
-
-    const mappedStock: ProductStock[] = (pldData || []).map((item: any) => {
-      const product = Array.isArray(item.product) ? item.product[0] : item.product
-      const stock = stockMap.get(item.product_id) ?? 0
-      return {
-        product_id: item.product_id,
-        name: product?.name || 'Sin nombre',
-        sku: product?.sku,
-        barcode: product?.barcode,
-        stock,
-        min_stock: item.min_stock ?? 0,
-        sale_price: item.sale_price,
-        cost_price: item.cost_price,
+      if (pldResult.error) {
+        setError(pldResult.error.message)
+        setLoading(false)
+        return
       }
-    })
 
-    setProductsStock(mappedStock)
-
-    // Conteos pendientes
-    const { data: pendingData, error: pendingError } = await supabase
-      .from('stock_counts')
-      .select(`
-        id,
-        product_id,
-        expected_quantity,
-        counted_quantity,
-        difference,
-        created_at,
-        product:products!inner(name)
-      `)
-      .eq('location_id', locId)
-      .eq('status', 'pending_adjustment')
-      .order('created_at', { ascending: false })
-
-    if (pendingError) {
-      setError(pendingError.message)
-      setLoading(false)
-      return
-    }
-
-    const mappedPending: PendingCount[] = (pendingData || []).map((item: any) => {
-      const product = Array.isArray(item.product) ? item.product[0] : item.product
-      return {
-        id: item.id,
-        product_id: item.product_id,
-        product_name: product?.name || 'Sin nombre',
-        expected_quantity: item.expected_quantity,
-        counted_quantity: item.counted_quantity,
-        difference: item.difference,
-        created_at: item.created_at,
-        counted_by_name: null,
+      if (stockResult.error) {
+        setError(stockResult.error.message)
+        setLoading(false)
+        return
       }
-    })
 
-    setPendingCounts(mappedPending)
+      if (pendingResult.error) {
+        setError(pendingResult.error.message)
+        setLoading(false)
+        return
+      }
+
+      const pldData = pldResult.data
+      const stockData = stockResult.data
+      const pendingData = pendingResult.data
+
+      const stockMap = new Map((stockData || []).map((s: any) => [s.product_id, s.quantity]))
+
+      const mappedStock: ProductStock[] = (pldData || []).map((item: any) => {
+        const product = Array.isArray(item.product) ? item.product[0] : item.product
+        const stock = stockMap.get(item.product_id) ?? 0
+        return {
+          product_id: item.product_id,
+          name: product?.name || 'Sin nombre',
+          sku: product?.sku,
+          barcode: product?.barcode,
+          stock,
+          min_stock: item.min_stock ?? 0,
+          sale_price: item.sale_price,
+          cost_price: item.cost_price,
+        }
+      })
+
+      setProductsStock(mappedStock)
+
+      const mappedPending: PendingCount[] = (pendingData || []).map((item: any) => {
+        const product = Array.isArray(item.product) ? item.product[0] : item.product
+        return {
+          id: item.id,
+          product_id: item.product_id,
+          product_name: product?.name || 'Sin nombre',
+          expected_quantity: item.expected_quantity,
+          counted_quantity: item.counted_quantity,
+          difference: item.difference,
+          created_at: item.created_at,
+          counted_by_name: null,
+        }
+      })
+
+      setPendingCounts(mappedPending)
+
+      // Opciones para los buscadores
+      setProductOptions(
+        mappedStock.map(s => ({
+          id: s.product_id,
+          name: s.name,
+          sku: s.sku,
+          barcode: s.barcode,
+        }))
+      )
 
     // Opciones para los buscadores
     setProductOptions(

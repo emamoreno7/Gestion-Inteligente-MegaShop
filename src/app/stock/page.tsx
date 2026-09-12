@@ -73,15 +73,28 @@ export default function StockPage() {
         return
       }
 
-      let locationId: string | null = null
-      try {
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('location_id')
-          .eq('id', user.id)
-          .single()
+        let locationId: string | null = null
 
-        locationId = userRow?.location_id ?? null
+        const [userRowResult, roleRowResult] = await Promise.all([
+          supabase
+            .from('users')
+            .select('location_id')
+            .eq('id', user.id)
+            .single(),
+          supabase
+            .from('users')
+            .select('role:roles (name)')
+            .eq('id', user.id)
+            .single(),
+        ])
+
+        if (!userRowResult.error && userRowResult.data) {
+          locationId = userRowResult.data.location_id ?? null
+        }
+
+        const roleData: any = roleRowResult.data?.role
+        const roleName = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name
+        if (roleName) setUserRole(roleName)
 
         if (locationId) {
           const { data: loc } = await supabase
@@ -91,23 +104,6 @@ export default function StockPage() {
             .single()
           if (loc?.name) setLocationName(loc.name)
         }
-       } catch {
-         // no romper
-       }
-
-       try {
-         const { data: roleRow } = await supabase
-           .from('users')
-           .select('role:roles (name)')
-           .eq('id', user.id)
-           .single()
-
-         const roleData: any = roleRow?.role
-         const roleName = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name
-         if (roleName) setUserRole(roleName)
-       } catch {
-         // no romper
-       }
 
         if (tab === 'current') {
          let query = supabase

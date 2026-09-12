@@ -51,25 +51,25 @@ export default function PendingPage() {
   const [editingCost, setEditingCost] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [savingCostId, setSavingCostId] = useState<string | null>(null)
-const [duplicatePairs, setDuplicatePairs] = useState<DuplicatePair[]>([])
-const [duplicateThreshold, setDuplicateThreshold] = useState(0.55)
-const [confirmMerge, setConfirmMerge] = useState<{
-  productAId: string
-  productAName: string
-  productAStock: number
-  productBId: string
-  productBName: string
-  productBStock: number
-} | null>(null)
-const [processing, setProcessing] = useState<string | null>(null)
+  const [duplicatePairs, setDuplicatePairs] = useState<DuplicatePair[]>([])
+  const [duplicateThreshold, setDuplicateThreshold] = useState(0.55)
+  const [duplicatesLoaded, setDuplicatesLoaded] = useState(false)
+  const [confirmMerge, setConfirmMerge] = useState<{
+    productAId: string
+    productAName: string
+    productAStock: number
+    productBId: string
+    productBName: string
+    productBStock: number
+  } | null>(null)
+  const [processing, setProcessing] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   const loadData = async (preserveSection = false) => {
     setLoading(true)
-    const [pendingRes, categoriesRes, duplicatesRes] = await Promise.all([
+    const [pendingRes, categoriesRes] = await Promise.all([
       fetch('/api/pending'),
       supabase.from('categories').select('id, name'),
-      fetch('/api/products/duplicates'),
     ])
 
     if (!pendingRes.ok) {
@@ -92,14 +92,19 @@ const [processing, setProcessing] = useState<string | null>(null)
 
     if (categoriesRes.data) setCategories(categoriesRes.data)
 
-    if (duplicatesRes.ok) {
-      const dupData = await duplicatesRes.json()
-      setDuplicatePairs(dupData.pairs || [])
+    setLoading(false)
+  }
+
+  const loadDuplicates = async () => {
+    const res = await fetch('/api/products/duplicates')
+    if (res.ok) {
+      const data = await res.json()
+      setDuplicatePairs(data.pairs || [])
+      setDuplicatesLoaded(true)
     } else {
       setDuplicatePairs([])
+      setDuplicatesLoaded(true)
     }
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -249,6 +254,7 @@ const [processing, setProcessing] = useState<string | null>(null)
        const sourceName = keep === 'A' ? confirmMerge.productBName : confirmMerge.productAName
        setSuccess(`"${sourceName}" fusionado en "${targetName}"`)
        await loadData(true)
+       setDuplicatesLoaded(false)
        setConfirmMerge(null)
     }
   }
@@ -462,17 +468,22 @@ const [processing, setProcessing] = useState<string | null>(null)
             </div>
           </button>
 
-            <button
-              onClick={() => toggleSection('duplicados')}
-              disabled={duplicatePairs.length === 0}
-              className={`text-left rounded-3xl p-4 border shadow-lg transition-all ${
-                duplicatePairs.length === 0
-                  ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
-                  : openSection === 'duplicados'
-                  ? 'bg-white text-[#2E5E7E] border-white scale-[1.01]'
-                  : 'bg-white/12 backdrop-blur-xl border-white/20 text-white hover:bg-white/20'
-              }`}
-            >
+             <button
+               onClick={() => {
+                 toggleSection('duplicados');
+                 if (!duplicatesLoaded) {
+                   loadDuplicates();
+                 }
+               }}
+               disabled={duplicatesLoaded && duplicatePairs.length === 0}
+               className={`text-left rounded-3xl p-4 border shadow-lg transition-all ${
+                 duplicatePairs.length === 0
+                   ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
+                   : openSection === 'duplicados'
+                   ? 'bg-white text-[#2E5E7E] border-white scale-[1.01]'
+                   : 'bg-white/12 backdrop-blur-xl border-white/20 text-white hover:bg-white/20'
+               }`}
+             >
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className={`text-sm font-extrabold ${openSection === 'duplicados' && duplicatePairs.length > 0 ? 'text-[#2E5E7E]' : 'text-inherit'}`}>

@@ -67,16 +67,20 @@ export default function CatalogPage() {
 
   const loadProducts = async () => {
     setLoading(true)
-    const locId = await getMyLocationId()
+
+    // getMyLocationId y categories son independientes, van en paralelo
+    const [locId, catResult] = await Promise.all([
+      getMyLocationId(),
+      supabase.from('categories').select('id, name').order('name'),
+    ])
+
     setLocationId(locId)
+    setCategories(catResult.data || [])
 
     if (!locId) {
       setLoading(false)
       return
     }
-
-    const { data: catData } = await supabase.from('categories').select('id, name').order('name')
-    setCategories(catData || [])
 
      const { data, error } = await supabase
        .from('products')
