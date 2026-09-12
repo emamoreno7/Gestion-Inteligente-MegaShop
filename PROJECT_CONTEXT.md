@@ -82,10 +82,17 @@
 - Función RPC `import_products` actualizada para procesar fusiones atómicamente.
 - UI en vista previa para fusionar productos con existentes.
 - Registro de actividad de usuarios (auditoría): ingresos al sistema y modificaciones (precios, stock, caja, cobros, ventas).
-- Tabla `user_activity_logs` con `action`, `description`, `details` (jsonb) y `created_at`.
+- Tabla `user_activity_logs` con `action`, `description`, `details` (jsonb) y `created_at` (`supabase/migrations/0002_user_activity_logs.sql`).
 - Helper `logUserActivity` (`src/lib/activity-server.ts`) que registra de forma silenciosa sin interrumpir la operación principal.
-- Endpoints `/api/activity` (GET, protegido para owner_admin/encargado) y `/api/activity/login` (POST).
-- Integración de registro en endpoints de mutación: login, import/save, import/approve, inventory/adjust, catalog/update, cash/open, cash/close y sales/create.
+- Endpoints `/api/activity` (GET, protegido para `owner_admin`) y `/api/activity/login` (POST, llamado al iniciar sesión).
+- Integración de registro en 22 endpoints de mutación:
+  - Login: `/api/activity/login`.
+  - Ventas: `sales/create`, `sales/confirm`, `sales/void`, `sales/return`, `sales/cancel`.
+  - Caja: `cash/open`, `cash/close`, `cash/movements`.
+  - Importación: `import/save`, `import/approve`, `import/reject`.
+  - Inventario: `inventory/adjust`, `inventory/count`, `inventory/apply-count`.
+  - Catálogo/precios: `catalog/update`, `settings/surcharge`, `settings/margins`, `settings/global-surcharge`.
+  - Pendientes: `pending/update`, `pending/bulk-update`, `pending/recalculate`.
 - Sección `/logs` con dos pestañas: "Errores" (original) y "Actividad de usuarios" con badge por tipo de acción, buscador, filtro y detalle expandible.
 
 ### En progreso / parcialmente funcional

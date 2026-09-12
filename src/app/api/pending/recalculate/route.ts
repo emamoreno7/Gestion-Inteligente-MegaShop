@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logUserActivity } from '@/lib/activity-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,10 @@ export async function POST(req: NextRequest) {
       console.error('Error recalculando precios:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    await logUserActivity(supabase, 'precio', 'Recálculo masivo de precios pendientes', {
+      location_id: userData.location_id,
+    })
 
     return NextResponse.json({ data })
   } catch (error: any) {

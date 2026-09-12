@@ -46,6 +46,14 @@ const ACTION_COLORS: Record<string, string> = {
 export default function LogsPage() {
   const [tab, setTab] = useState<'errores' | 'actividad'>('errores')
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const initialTab = params.get('tab')
+    if (initialTab === 'actividad' || initialTab === 'errores') {
+      setTab(initialTab)
+    }
+  }, [])
+
   // Estado de errores
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)

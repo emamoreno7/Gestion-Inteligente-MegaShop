@@ -114,7 +114,6 @@ export default function DashboardPage() {
     let rawName = email.split('@')[0]
     let locationId: string | null = null
     let locationName = 'Rivadavia, Mendoza'
-    let roleName: string | null = null
 
     try {
       const { data: userRow } = await supabase
@@ -127,66 +126,55 @@ export default function DashboardPage() {
       if (userRow?.location_id) locationId = userRow.location_id
 
       const roleData = Array.isArray(userRow?.role) ? userRow.role[0] : userRow?.role
-      roleName = roleData?.name || null
-      setRole(roleName)
-
-      if (locationId) {
-        const { data: loc } = await supabase
-          .from('locations')
-          .select('name')
-          .eq('id', locationId)
-          .single()
-        if (loc?.name) locationName = loc.name
-      }
+      setRole(roleData?.name || null)
     } catch {
       // fallback
     }
 
     const initials = rawName.substring(0, 2).toUpperCase()
 
-    let approvalsCount = 0
-    try {
-      const { count } = await supabase
-        .from('bulk_imports')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending_approval')
-      approvalsCount = count ?? 0
-    } catch {}
+    // Ejecutamos todas las consultas independientes en paralelo para que el
+    // dashboard cargue en el tiempo de la más lenta y no en la suma de todas.
+    const today = new Date().toISOString().split('T')[0]
 
-    let pendingCount = 0
-    try {
-      const { count: noCategoryCount } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .is('category_id', null)
-      pendingCount += noCategoryCount ?? 0
-    } catch {}
-
-    try {
-      if (locationId) {
-        const { count: noPriceCount } = await supabase
-          .from('product_location_data')
+    const [locResult, approvalsResult, noCategoryResult, noPriceResult, salesResult] =
+      await Promise.all<any>([
+        locationId
+          ? supabase.from('locations').select('name').eq('id', locationId).single()
+          : Promise.resolve({ data: null }),
+        supabase
+          .from('bulk_imports')
           .select('*', { count: 'exact', head: true })
-          .eq('location_id', locationId)
-          .eq('price_status', 'pending')
-        pendingCount += noPriceCount ?? 0
-      }
-    } catch {}
+          .eq('status', 'pending_approval'),
+        supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .is('category_id', null),
+        locationId
+          ? supabase
+              .from('product_location_data')
+              .select('*', { count: 'exact', head: true })
+              .eq('location_id', locationId)
+              .eq('price_status', 'pending')
+          : Promise.resolve({ count: null }),
+        supabase
+          .from('sales')
+          .select('total, status')
+          .gte('created_at', `${today}T00:00:00`)
+          .lt('created_at', `${today}T23:59:59`)
+          .in('status', ['completed', 'pending']),
+      ])
+
+    if (locResult?.data?.name) locationName = locResult.data.name
+
+    const approvalsCount = approvalsResult?.count ?? 0
+    const pendingCount = (noCategoryResult?.count ?? 0) + (noPriceResult?.count ?? 0)
 
     let todaySales = 0
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      const { data: sales } = await supabase
-        .from('sales')
-        .select('total, status')
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`)
-        .in('status', ['completed', 'pending'])
-
-      if (sales) {
-        todaySales = sales.reduce((sum: number, s: { total: number }) => sum + (s.total || 0), 0)
-      }
-    } catch {}
+    const sales = salesResult?.data
+    if (sales) {
+      todaySales = sales.reduce((sum: number, s: { total: number }) => sum + (s.total || 0), 0)
+    }
 
     const todaySalesFormatted = new Intl.NumberFormat('es-AR', {
       style: 'currency',

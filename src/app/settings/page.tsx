@@ -23,6 +23,7 @@ type SectionId =
   | 'brand'
   | 'security'
   | 'data'
+  | 'maintenance'
 
 const SECTIONS: {
   id: SectionId
@@ -43,6 +44,7 @@ const SECTIONS: {
   { id: 'brand', label: 'Marca', icon: '🎨', ready: false, description: 'Logo, colores e identidad visual' },
   { id: 'security', label: 'Seguridad', icon: '🔒', ready: false, description: 'Contraseña, sesiones y 2FA' },
   { id: 'data', label: 'Datos', icon: '📊', ready: false, description: 'Exportaciones y backups' },
+  { id: 'maintenance', label: 'Mantenimiento', icon: '🛠️', ready: true, description: 'Logs de errores y actividad de usuarios' },
 ]
 
 export default function SettingsPage() {
@@ -60,6 +62,7 @@ export default function SettingsPage() {
   const [showGlobalModal, setShowGlobalModal] = useState(false)
   const [globalPercentage, setGlobalPercentage] = useState(0)
   const [applyingGlobal, setApplyingGlobal] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
@@ -72,11 +75,14 @@ export default function SettingsPage() {
         if (user) {
           const { data: userRow } = await supabase
             .from('users')
-            .select('full_name, location_id')
+            .select('full_name, location_id, role:roles(name)')
             .eq('id', user.id)
             .single()
 
           if (userRow?.full_name) setUserName(userRow.full_name)
+
+          const roleData = Array.isArray(userRow?.role) ? userRow.role[0] : userRow?.role
+          setUserRole(roleData?.name || null)
 
           if (userRow?.location_id) {
             const { data: loc } = await supabase
@@ -282,8 +288,8 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <nav className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
-                {SECTIONS.map((section) => {
+               <nav className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+                 {SECTIONS.filter((s) => s.id !== 'maintenance' || (userRole && ['owner_admin', 'admin'].includes(userRole))).map((section) => {
                   const active = activeSection === section.id
                   return (
                     <button
@@ -687,6 +693,65 @@ export default function SettingsPage() {
                   'Zona de peligro (solo owner)',
                 ]}
               />
+            )}
+
+            {activeSection === 'maintenance' && (
+              <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 sm:p-8 shadow-xl">
+                {userRole !== 'owner_admin' ? (
+                  <div className="text-center py-10">
+                    <div className="text-5xl mb-3">🔒</div>
+                    <h3 className="text-white text-lg font-extrabold">Acceso restringido</h3>
+                    <p className="text-white/70 text-sm mt-1">
+                      Solo el administrador (owner) puede ver esta sección.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/80 text-[11px] font-bold uppercase tracking-wider mb-4">
+                      Solo administrador
+                    </div>
+                    <h3 className="text-white text-xl sm:text-2xl font-extrabold drop-shadow mb-1">
+                      Mantenimiento del sistema
+                    </h3>
+                    <p className="text-white/70 text-sm mb-6 max-w-2xl">
+                      Herramientas de diagnóstico y auditoría operativa. Acceso exclusivo para el owner
+                      del comercio.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Link
+                        href="/logs?tab=errores"
+                        className="group rounded-2xl bg-white/5 border border-white/10 px-4 py-5 hover:bg-white/10 transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🧨</span>
+                          <div>
+                            <div className="text-white font-extrabold">Logs de errores</div>
+                            <div className="text-white/55 text-xs mt-0.5">
+                              Errores de frontend y backend capturados por el sistema.
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+
+                      <Link
+                        href="/logs?tab=actividad"
+                        className="group rounded-2xl bg-white/5 border border-white/10 px-4 py-5 hover:bg-white/10 transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🕵️</span>
+                          <div>
+                            <div className="text-white font-extrabold">Actividad de usuarios</div>
+                            <div className="text-white/55 text-xs mt-0.5">
+                              Ingresos y modificaciones (cobros, stock, precios, ventas, caja).
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </main>
         </div>

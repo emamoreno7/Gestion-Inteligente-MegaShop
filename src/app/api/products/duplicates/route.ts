@@ -1,9 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { logUserActivity } from '@/lib/activity-server'
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -30,34 +29,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Usuario sin local asignado' }, { status: 403 })
     }
 
-    const { product_id, counted_quantity, notes } = await req.json()
-    if (!product_id || counted_quantity === undefined) {
-      return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
-    }
+    const url = new URL(req.url)
+    const minSimilarity = parseFloat(url.searchParams.get('min_similarity') || '0.55')
+    const limit = parseInt(url.searchParams.get('limit') || '100', 10)
 
-    const idempotency_key = crypto.randomUUID()
-
-    const { data, error } = await supabase.rpc('record_stock_count', {
-      p_product_id: product_id,
+    const { data, error } = await supabase.rpc('find_duplicate_pairs', {
       p_location_id: userData.location_id,
-      p_counted_quantity: counted_quantity,
-      p_idempotency_key: idempotency_key,
-      p_notes: notes || null,
+      p_min_similarity: minSimilarity,
+      p_limit: limit,
     })
 
     if (error) {
-      console.error('Error record_stock_count:', error)
+      console.error('Error RPC find_duplicate_pairs:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    await logUserActivity(supabase, 'stock', 'Conteo físico de stock', {
-      product_id,
-      counted_quantity,
-      notes,
-    })
-
-    return NextResponse.json({ data })
+    return NextResponse.json({ pairs: data || [] })
   } catch (error: any) {
+    console.error('Error en products/duplicates:', error)
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
 }

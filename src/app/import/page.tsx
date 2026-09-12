@@ -55,9 +55,21 @@ export default function ImportPage() {
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   }
+
+  const getSimilarityBadgeClass = (similarity: number) => {
+    if (similarity >= 0.90) {
+      return 'bg-emerald-400/20 border border-emerald-300/30 text-emerald-100' // Green
+    } else if (similarity >= 0.60) {
+      return 'bg-amber-400/20 border border-amber-300/30 text-amber-100' // Yellow
+    } else {
+      return 'bg-gray-400/20 border border-gray-300/30 text-gray-100' // Gray
+    }
+  }
+
   const detectSimilarProducts = async (rows: ProductRow[]) => {
     setSimilarityMap({})
     const names = rows.map(r => r.name)
+    console.log('[detectSimilarProducts] names enviados:', names)
     try {
       const res = await fetch('/api/products/find-similar-batch', {
         method: 'POST',
@@ -65,8 +77,10 @@ export default function ImportPage() {
         body: JSON.stringify({ names }),
       })
       const data = await res.json()
+      console.log('[detectSimilarProducts] respuesta:', res.status, data)
       if (res.ok && data.results) {
         setSimilarityMap(data.results)
+        console.log('[detectSimilarProducts] similarityMap seteado:', data.results)
       }
     } catch (e) {
       console.error('Error detectando similitudes:', e)
@@ -219,6 +233,7 @@ export default function ImportPage() {
   }
 
   const handleFileUpload = async (file: File) => {
+    alert('handleFileUpload EJECUTADO: ' + file.name)
     setError(null)
     setSuccess(null)
     setFileName(file.name)
@@ -277,10 +292,11 @@ export default function ImportPage() {
             }
           })
 
-          const classified = await classifyProducts(normalized)
-          setProducts(classified)
-          setImportType(file.name.endsWith('.csv') ? 'csv' : 'excel')
-          await detectSimilarProducts(classified)
+        const classified = await classifyProducts(normalized)
+        setProducts(classified)
+        setImportType(file.name.endsWith('.csv') ? 'csv' : 'excel')
+        await detectSimilarProducts(classified)
+        console.log('[handleFileUpload] FIN - detección lanzada')
       } else {
         setError('Formato no soportado. Usa CSV o Excel.')
       }
@@ -596,20 +612,20 @@ export default function ImportPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-white font-semibold text-sm">
-  {p.name}
-  {similarityMap[idx] && similarityMap[idx].length > 0 && (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {similarityMap[idx].slice(0, 3).map((sim: any) => (
-        <span
-          key={sim.id}
-          className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/30 text-amber-100 text-[10px] font-bold"
-        >
-          Similar: {sim.name}
-        </span>
-      ))}
-    </div>
-  )}
-</td>
+          {p.name}
+          {similarityMap[idx] && similarityMap[idx].length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {similarityMap[idx].slice(0, 3).map((sim: any) => (
+                <span
+                  key={sim.id}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full ${getSimilarityBadgeClass(sim.similarity)} text-[10px] font-bold`}
+                >
+                  Similar: {sim.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </td>
                         <td className="px-4 py-3.5 text-white/70 text-sm">{p.sku || p.barcode || '-'}</td>
                         <td className="px-4 py-3.5">
                           <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10 border border-white/15 text-white/80">
@@ -639,7 +655,7 @@ export default function ImportPage() {
                   <h2 className="text-white text-xl font-extrabold">Auditoría de carga</h2>
                   <p className="text-white/70 text-sm mt-1">Revisá y ajustá cantidades, costos y rubros.</p>
                 </div>
-                <button onClick={() => setShowAuditModal(false)} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white">✕</button>
+                <button onClick={() => setShowAuditModal(false)} className="w-10 h-10 rounded-full bg-white/10 hover-bg-white/20 border border-white/20 flex items-center justify-center text-white">✕</button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
@@ -661,27 +677,27 @@ export default function ImportPage() {
                         <div className="flex-1">
                           <p className="text-white font-bold mb-2">{p.name}</p>
                           {similarityMap[idx] && similarityMap[idx].length > 0 && !mergeInfo[idx] && (
-  <div className="mb-2">
-    <p className="text-[10px] font-bold uppercase text-amber-300 mb-1">Posibles duplicados:</p>
-    <div className="flex flex-wrap gap-1">
-      {similarityMap[idx].slice(0, 3).map((sim: any) => (
-        <button
-          key={sim.id}
-          onClick={() => handleMerge(idx, sim)}
-          className="inline-flex items-center px-2 py-1 rounded-full bg-amber-400/20 border border-amber-300/30 text-amber-100 text-[10px] font-bold hover:bg-amber-400/30 transition-colors"
-        >
-          Fusionar con {sim.name}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
-{mergeInfo[idx] && (
-  <div className="mb-2 px-3 py-2 rounded-xl bg-green-500/20 border border-green-400/30 text-green-200 text-xs font-bold flex items-center justify-between">
-    <span>Fusionado con: {mergeInfo[idx].existingName}</span>
-    <button onClick={() => handleUndoMerge(idx)} className="text-white/70 hover:text-white text-xs underline">Deshacer</button>
-  </div>
-)}
+            <div className="mb-2">
+              <p className="text-[10px] font-bold uppercase text-amber-300 mb-1">Posibles duplicados:</p>
+              <div className="flex flex-wrap gap-1">
+                {similarityMap[idx].slice(0, 3).map((sim: any) => (
+                  <button
+                    key={sim.id}
+                    onClick={() => handleMerge(idx, sim)}
+                    className={`inline-flex items-center px-2 py-1 rounded-full ${getSimilarityBadgeClass(sim.similarity)} text-[10px] font-bold hover:bg-amber-400/30 transition-colors`}
+                  >
+                    Fusionar con {sim.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {mergeInfo[idx] && (
+            <div className="mb-2 px-3 py-2 rounded-xl bg-green-500/20 border border-green-400/30 text-green-200 text-xs font-bold flex items-center justify-between">
+              <span>Fusionado con: {mergeInfo[idx].existingName}</span>
+              <button onClick={() => handleUndoMerge(idx)} className="text-white/70 hover:text-white text-xs underline">Deshacer</button>
+            </div>
+          )}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                               <label className="text-[10px] font-bold uppercase text-white/60">Cantidad</label>
@@ -803,7 +819,7 @@ export default function ImportPage() {
                     </label>
                   </div>
                   <div className="flex gap-3 shrink-0">
-                    <button onClick={() => setShowAuditModal(false)} className="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold">Cancelar</button>
+                    <button onClick={() => setShowAuditModal(false)} className="px-6 py-3 rounded-2xl bg-white/10 hover-bg-white/20 text-white font-semibold">Cancelar</button>
                     <button onClick={confirmSave} disabled={saving || !acceptedCheck} className="px-6 py-3 rounded-2xl bg-gradient-to-br from-[#7FC7A8] to-[#4E9B7C] text-white font-extrabold disabled:opacity-50">
                       {saving ? 'Guardando...' : 'Confirmar Importación'}
                     </button>

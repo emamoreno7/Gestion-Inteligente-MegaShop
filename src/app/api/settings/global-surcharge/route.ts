@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logUserActivity } from '@/lib/activity-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +41,10 @@ export async function POST(req: NextRequest) {
     })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    await logUserActivity(supabase, 'precio', 'Aplicación de recargo global de precios', {
+      percentage: Number(percentage),
+    })
 
     return NextResponse.json({ data })
   } catch (error: any) {

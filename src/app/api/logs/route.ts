@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
     const roleData = Array.isArray(userData.role) ? userData.role[0] : userData.role
     const roleName = roleData?.name || null
 
-    if (roleName !== 'owner_admin' && roleName !== 'encargado') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if (roleName !== 'owner_admin') {
+      return NextResponse.json({ error: 'No autorizado. Solo administrador.' }, { status: 403 })
     }
 
     const { data: logs, error } = await supabase

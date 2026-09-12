@@ -150,3 +150,8 @@
 - **Causa:** Solo se capturaban errores del frontend.
 - **Solución:** Se implementó `logBackendError` y se integró en endpoints críticos.
 - **Archivos:** `src/lib/logger-server.ts`, endpoints de ventas, caja, importación, inventario y pendientes.
+## 2026-09-10 — Registro de actividad de usuarios (auditoría)
+- **Síntoma:** No había trazabilidad de quién ingresa al sistema ni de las modificaciones que realiza cada usuario (precios, stock, caja, cobros, ventas).
+- **Causa:** Los logs de errores solo guardaban fallas; no existía un registro de acciones exitosas por usuario.
+- **Solución:** Se creó la tabla `user_activity_logs` (`supabase/migrations/0002_user_activity_logs.sql`), el helper `logUserActivity` (`src/lib/activity-server.ts`, silencioso e independiente de la operación principal) y se integró en 22 endpoints de mutación: login, ventas, caja, importación, inventario, catálogo/precios y pendientes. En `/logs` se agregó la pestaña "Actividad de usuarios" (GET `/api/activity`, protegido para `owner_admin`) con badge por acción, buscador, filtro y detalle expandible.
+- **Archivos:** `supabase/migrations/0002_user_activity_logs.sql`, `src/lib/activity-server.ts`, `src/app/api/activity/route.ts`, `src/app/api/activity/login/route.ts`, `src/app/logs/page.tsx` y endpoints de mutación.

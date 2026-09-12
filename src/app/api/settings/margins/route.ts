@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { logUserActivity } from '@/lib/activity-server'
 
 export async function GET() {
   try {
@@ -136,6 +137,10 @@ export async function POST(req: NextRequest) {
         }
       }
   
+    await logUserActivity(supabase, 'precio', 'Actualización de márgenes por rubro', {
+      margins_count: margins.length,
+    })
+
       return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })

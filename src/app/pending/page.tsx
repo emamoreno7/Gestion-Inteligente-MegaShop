@@ -22,6 +22,22 @@ type Category = {
   name: string
 }
 
+type DuplicatePair = {
+  product_a_id: string
+  product_a_name: string
+  product_a_sku: string | null
+  product_a_barcode: string | null
+  product_a_category: string | null
+  product_a_stock: number
+  product_b_id: string
+  product_b_name: string
+  product_b_sku: string | null
+  product_b_barcode: string | null
+  product_b_category: string | null
+  product_b_stock: number
+  similarity: number
+}
+
 export default function PendingPage() {
   const [withoutCategory, setWithoutCategory] = useState<PendingProduct[]>([])
   const [withoutCost, setWithoutCost] = useState<PendingProduct[]>([])
@@ -30,18 +46,30 @@ export default function PendingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [openSection, setOpenSection] = useState<'rubro' | 'costo' | null>('rubro')
+  const [openSection, setOpenSection] = useState<'rubro' | 'costo' | 'duplicados' | null>('rubro')
   const [editingCategory, setEditingCategory] = useState<Record<string, string>>({})
   const [editingCost, setEditingCost] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [savingCostId, setSavingCostId] = useState<string | null>(null)
+const [duplicatePairs, setDuplicatePairs] = useState<DuplicatePair[]>([])
+const [duplicateThreshold, setDuplicateThreshold] = useState(0.55)
+const [confirmMerge, setConfirmMerge] = useState<{
+  productAId: string
+  productAName: string
+  productAStock: number
+  productBId: string
+  productBName: string
+  productBStock: number
+} | null>(null)
+const [processing, setProcessing] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
-  const loadData = async () => {
+  const loadData = async (preserveSection = false) => {
     setLoading(true)
-    const [pendingRes, categoriesRes] = await Promise.all([
+    const [pendingRes, categoriesRes, duplicatesRes] = await Promise.all([
       fetch('/api/pending'),
       supabase.from('categories').select('id, name'),
+      fetch('/api/products/duplicates'),
     ])
 
     if (!pendingRes.ok) {
@@ -55,13 +83,22 @@ export default function PendingPage() {
       setWithoutCost(noCost)
       setPendingRecalcCount(data.pendingRecalcCount || 0)
 
-      // Abrir automáticamente la cola que tenga trabajo
-      if (noCat.length > 0) setOpenSection('rubro')
-      else if (noCost.length > 0) setOpenSection('costo')
-      else setOpenSection(null)
+      if (!preserveSection) {
+        if (noCat.length > 0) setOpenSection('rubro')
+        else if (noCost.length > 0) setOpenSection('costo')
+        else setOpenSection(null)
+      }
     }
 
     if (categoriesRes.data) setCategories(categoriesRes.data)
+
+    if (duplicatesRes.ok) {
+      const dupData = await duplicatesRes.json()
+      setDuplicatePairs(dupData.pairs || [])
+    } else {
+      setDuplicatePairs([])
+    }
+
     setLoading(false)
   }
 
@@ -134,17 +171,98 @@ export default function PendingPage() {
     } else {
       setSuccess(
         `Costo cargado. Precio ${data.data?.status === 'set' ? 'calculado' : 'pendiente (sin margen)'}`
-      )
-      setEditingCost((prev) => {
-        const next = { ...prev }
-        delete next[productId]
-        return next
-      })
-      await loadData()
+       )
+       setEditingCost((prev) => {
+         const next = { ...prev }
+         delete next[productId]
+         return next
+       })
+       await loadData()
+     }
+   }
+   
+   const getSimilarityColor = (sim: number) => {
+     if (sim >= 0.9) return 'bg-red-500/20 border-red-400/40 text-red-100'
+     if (sim >= 0.7) return 'bg-orange-400/20 border-orange-300/30 text-orange-100'
+     return 'bg-amber-400/20 border-amber-300/30 text-amber-100'
+   }
+   
+   const getSimilarityLabel = (sim: number) => {
+     if (sim >= 0.9) return 'Duplicado casi seguro'
+     if (sim >= 0.7) return 'Muy similares'
+     return 'Similares'
+   }
+   
+   const handleDismissDuplicate = async (aId: string, bId: string) => {
+     setProcessing(`${aId}-${bId}`)
+     setError(null)
+     setSuccess(null)
+     
+     const res = await fetch('/api/products/dismiss-duplicate', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ a_id: aId, b_id: bId }),
+     })
+     
+     setProcessing(null)
+     
+     if (!res.ok) {
+       const data = await res.json()
+       setError(data.error || 'Error al marcar')
+     } else {
+       setDuplicatePairs(prev => prev.filter(p =>
+         !(p.product_a_id === aId && p.product_b_id === bId)
+       ))
+       setSuccess('Par marcado como distinto')
+     }
+   }
+   
+    const handleMergeConfirm = async (
+    keep: 'A' | 'B',
+    stockMode: 'sum' | 'keep_target' | 'keep_source'
+  ) => {
+    if (!confirmMerge) return
+    setProcessing('merge')
+    setError(null)
+    setSuccess(null)
+
+    const sourceId = keep === 'A' ? confirmMerge.productBId : confirmMerge.productAId
+    const targetId = keep === 'A' ? confirmMerge.productAId : confirmMerge.productBId
+
+    const res = await fetch('/api/products/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source_id: sourceId,
+        target_id: targetId,
+        stock_mode: stockMode,
+      }),
+    })
+
+    setProcessing(null)
+
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Error al fusionar')
+    } else {
+       const targetName = keep === 'A' ? confirmMerge.productAName : confirmMerge.productBName
+       const sourceName = keep === 'A' ? confirmMerge.productBName : confirmMerge.productAName
+       setSuccess(`"${sourceName}" fusionado en "${targetName}"`)
+       await loadData(true)
+       setConfirmMerge(null)
     }
   }
-
-  const handleRecalc = async () => {
+   
+   const reloadDuplicates = async (threshold: number) => {
+     setDuplicateThreshold(threshold)
+     const res = await fetch(`/api/products/duplicates?min_similarity=${threshold}`)
+     if (res.ok) {
+       const data = await res.json()
+       setDuplicatePairs(data.pairs || [])
+     }
+   }
+   
+   const handleRecalc = async () => {
     setSaving(true)
     setError(null)
     setSuccess(null)
@@ -163,7 +281,7 @@ export default function PendingPage() {
     }
   }
 
-  const toggleSection = (section: 'rubro' | 'costo') => {
+  const toggleSection = (section: 'rubro' | 'costo' | 'duplicados') => {
     setOpenSection((prev) => (prev === section ? null : section))
   }
 
@@ -278,8 +396,8 @@ export default function PendingPage() {
           </div>
         )}
 
-        {/* Tabs de colas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+         {/* Tabs de colas */}
+         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <button
             onClick={() => toggleSection('rubro')}
             disabled={withoutCategory.length === 0}
@@ -343,6 +461,38 @@ export default function PendingPage() {
               </span>
             </div>
           </button>
+
+            <button
+              onClick={() => toggleSection('duplicados')}
+              disabled={duplicatePairs.length === 0}
+              className={`text-left rounded-3xl p-4 border shadow-lg transition-all ${
+                duplicatePairs.length === 0
+                  ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
+                  : openSection === 'duplicados'
+                  ? 'bg-white text-[#2E5E7E] border-white scale-[1.01]'
+                  : 'bg-white/12 backdrop-blur-xl border-white/20 text-white hover:bg-white/20'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className={`text-sm font-extrabold ${openSection === 'duplicados' && duplicatePairs.length > 0 ? 'text-[#2E5E7E]' : 'text-inherit'}`}>
+                    Posibles Duplicados
+                  </div>
+                  <div className={`text-xs mt-0.5 ${openSection === 'duplicados' && duplicatePairs.length > 0 ? 'text-[#2E5E7E]/70' : 'text-white/60'}`}>
+                    {duplicatePairs.length === 0 ? 'Sin duplicados' : `${duplicatePairs.length} par${duplicatePairs.length === 1 ? '' : 'es'}`}
+                  </div>
+                </div>
+                <span
+                  className={`min-w-[36px] h-9 px-2 rounded-full flex items-center justify-center text-sm font-extrabold border ${
+                    openSection === 'duplicados' && duplicatePairs.length > 0
+                      ? 'bg-[#2E5E7E]/10 border-[#2E5E7E]/20 text-[#2E5E7E]'
+                      : 'bg-red-400/20 border-red-300/30 text-red-100'
+                  }`}
+                >
+                  {duplicatePairs.length}
+                </span>
+              </div>
+            </button>
         </div>
 
         {/* Contenido */}
@@ -497,9 +647,169 @@ export default function PendingPage() {
                 })}
               </div>
             </div>
+           ) : openSection === 'duplicados' ? (
+            <div className="flex flex-col h-full">
+              <div className="px-4 sm:px-5 py-4 border-b border-white/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="text-white font-extrabold text-base sm:text-lg">Posibles Duplicados</h2>
+                  <p className="text-white/60 text-xs mt-0.5">Revisá pares con nombres similares y unificalos</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-white/60 text-xs">Umbral:</label>
+                  <select
+                    value={duplicateThreshold}
+                    onChange={(e) => reloadDuplicates(parseFloat(e.target.value))}
+                    className="bg-black/20 border border-white/15 text-white rounded-xl px-2 py-1 text-xs"
+                  >
+                    <option value={0.9}>90% (estricto)</option>
+                    <option value={0.7}>70% (recomendado)</option>
+                    <option value={0.55}>55% (amplio)</option>
+                    <option value={0.4}>40% (muy amplio)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+                {duplicatePairs.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-16">
+                    <p className="text-white font-extrabold text-lg">No hay duplicados con ese umbral</p>
+                    <p className="text-white/60 text-sm mt-1">Probá con un umbral más amplio.</p>
+                  </div>
+                ) : (
+                  duplicatePairs.map((pair) => (
+                    <div
+                      key={`${pair.product_a_id}-${pair.product_b_id}`}
+                      className="rounded-2xl p-4 border bg-white/10 border-white/15 shadow-lg"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold ${getSimilarityColor(pair.similarity)}`}>
+                          {getSimilarityLabel(pair.similarity)} · {(pair.similarity * 100).toFixed(0)}%
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                          <p className="text-white font-semibold text-sm break-words">{pair.product_a_name}</p>
+                          <p className="text-white/50 text-xs mt-1">
+                            {pair.product_a_sku || pair.product_a_barcode || 'Sin código'}
+                            {pair.product_a_category && ` · ${pair.product_a_category}`}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">Stock: {pair.product_a_stock}</p>
+                        </div>
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                          <p className="text-white font-semibold text-sm break-words">{pair.product_b_name}</p>
+                          <p className="text-white/50 text-xs mt-1">
+                            {pair.product_b_sku || pair.product_b_barcode || 'Sin código'}
+                            {pair.product_b_category && ` · ${pair.product_b_category}`}
+                          </p>
+                          <p className="text-white/70 text-xs mt-1">Stock: {pair.product_b_stock}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setConfirmMerge({
+                            productAId: pair.product_a_id,
+                            productAName: pair.product_a_name,
+                            productAStock: pair.product_a_stock,
+                            productBId: pair.product_b_id,
+                            productBName: pair.product_b_name,
+                            productBStock: pair.product_b_stock,
+                          })}
+                          disabled={processing !== null}
+                          className="px-3 py-2 rounded-xl bg-gradient-to-br from-[#7FD1C6] to-[#3E9D91] text-white font-bold text-xs hover:brightness-110 disabled:opacity-50"
+                        >
+                          Revisar y fusionar
+                        </button>
+                        <button
+                          onClick={() => handleDismissDuplicate(pair.product_a_id, pair.product_b_id)}
+                          disabled={processing !== null}
+                          className="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-xs hover:bg-white/20 disabled:opacity-50"
+                        >
+                          No son duplicados
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           ) : null}
         </div>
       </div>
-    </div>
-  )
-}
+
+        {confirmMerge && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="w-full max-w-xl bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl p-6 shadow-2xl">
+              <h3 className="text-white text-lg font-extrabold mb-1">Confirmar fusión</h3>
+              <p className="text-white/60 text-xs mb-4">
+                Elegí qué producto conservar y cómo tratar el stock.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="bg-white/5 border border-white/15 rounded-xl p-3">
+                  <p className="text-white/50 text-[10px] font-bold uppercase mb-1">Producto A</p>
+                  <p className="text-white font-bold text-sm break-words">{confirmMerge.productAName}</p>
+                  <p className="text-white/70 text-xs mt-1">Stock: {confirmMerge.productAStock}</p>
+                </div>
+                <div className="bg-white/5 border border-white/15 rounded-xl p-3">
+                  <p className="text-white/50 text-[10px] font-bold uppercase mb-1">Producto B</p>
+                  <p className="text-white font-bold text-sm break-words">{confirmMerge.productBName}</p>
+                  <p className="text-white/70 text-xs mt-1">Stock: {confirmMerge.productBStock}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <button
+                  onClick={() => handleMergeConfirm('A', 'sum')}
+                  disabled={processing === 'merge'}
+                  className="w-full text-left px-4 py-3 rounded-xl bg-gradient-to-br from-[#7FD1C6] to-[#3E9D91] text-white hover:brightness-110 disabled:opacity-50"
+                >
+                  <p className="font-extrabold text-sm">Sumar stocks (conservar A)</p>
+                  <p className="text-white/80 text-xs mt-0.5">
+                    Stock final: {confirmMerge.productAStock + confirmMerge.productBStock} · Conserva "{confirmMerge.productAName}"
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleMergeConfirm('A', 'keep_target')}
+                  disabled={processing === 'merge'}
+                  className="w-full text-left px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-50"
+                >
+                  <p className="font-extrabold text-sm">Conservar stock de A</p>
+                  <p className="text-white/70 text-xs mt-0.5">
+                    Stock final: {confirmMerge.productAStock} · Conserva "{confirmMerge.productAName}"
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => handleMergeConfirm('B', 'keep_target')}
+                  disabled={processing === 'merge'}
+                  className="w-full text-left px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-50"
+                >
+                  <p className="font-extrabold text-sm">Conservar stock de B</p>
+                  <p className="text-white/70 text-xs mt-0.5">
+                    Stock final: {confirmMerge.productBStock} · Conserva "{confirmMerge.productBName}"
+                  </p>
+                </button>
+              </div>
+
+              <p className="text-white/60 text-[11px] mb-4">
+                El producto no conservado quedará inactivo. Los movimientos de stock se reasignan al producto conservado. Se puede revertir con "Restaurar producto".
+              </p>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setConfirmMerge(null)}
+                  disabled={processing === 'merge'}
+                  className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-sm hover:bg-white/20 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }

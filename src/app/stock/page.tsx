@@ -33,6 +33,20 @@ type StockMovement = {
   } | null
 }
 
+type ProductActionModal = {
+  productId: string
+  locationId: string
+  productName: string
+  currentStock: number
+  movements: Array<{
+    id: string
+    quantity_change: number
+    movement_type: string
+    notes: string | null
+    created_at: string
+  }>
+} | null
+
 export default function StockPage() {
   const [tab, setTab] = useState<'current' | 'movements'>('current')
   const [stockLevels, setStockLevels] = useState<StockLevel[]>([])
@@ -40,6 +54,11 @@ export default function StockPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [locationName, setLocationName] = useState<string>('Sucursal')
+  const [actionModal, setActionModal] = useState<ProductActionModal>(null)
+  const [actionMode, setActionMode] = useState<'menu' | 'zero' | 'deactivate'>('menu')
+  const [actionReason, setActionReason] = useState('')
+  const [actionProcessing, setActionProcessing] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
@@ -72,41 +91,57 @@ export default function StockPage() {
             .single()
           if (loc?.name) setLocationName(loc.name)
         }
-      } catch {
-        // no romper
-      }
+       } catch {
+         // no romper
+       }
 
-      if (tab === 'current') {
-        let query = supabase
-          .from('stock_levels')
-          .select(`
-            location_id,
-            product_id,
-            quantity,
-            product:products (
-              name,
-              sku,
-              barcode,
-              category:categories (name)
-            )
-          `)
-          .order('quantity', { ascending: false })
+       try {
+         const { data: roleRow } = await supabase
+           .from('users')
+           .select('role:roles (name)')
+           .eq('id', user.id)
+           .single()
 
-        if (locationId) {
-          query = query.eq('location_id', locationId)
-        }
+         const roleData: any = roleRow?.role
+         const roleName = Array.isArray(roleData) ? roleData[0]?.name : roleData?.name
+         if (roleName) setUserRole(roleName)
+       } catch {
+         // no romper
+       }
 
-        const { data, error } = await query
+        if (tab === 'current') {
+         let query = supabase
+           .from('stock_levels')
+           .select(`
+             location_id,
+             product_id,
+             quantity,
+             product:products!inner (
+               name,
+               sku,
+               barcode,
+               is_active,
+               category:categories (name)
+             )
+           `)
+           .eq('product.is_active', true)
+           .order('quantity', { ascending: false })
 
-        if (!error && data) {
-          const normalized = (data as any[]).map((item: any) => ({
-            ...item,
-            product: Array.isArray(item.product) ? item.product[0] : item.product,
-          }))
-          setStockLevels(normalized as unknown as StockLevel[])
-        } else {
-          setStockLevels([])
-        }
+         if (locationId) {
+           query = query.eq('location_id', locationId)
+         }
+
+         const { data, error } = await query
+
+         if (!error && data) {
+           const normalized = (data as any[]).map((item: any) => ({
+             ...item,
+             product: Array.isArray(item.product) ? item.product[0] : item.product,
+           }))
+           setStockLevels(normalized as unknown as StockLevel[])
+         } else {
+           setStockLevels([])
+         }
       } else {
         let query = supabase
           .from('stock_movements')
@@ -170,6 +205,111 @@ export default function StockPage() {
 
     loadData()
   }, [tab, supabase])
+
+  const openProductActions = async (
+    productId: string,
+    locationId: string,
+    productName: string,
+    currentStock: number
+  ) => {
+    setActionProcessing(true)
+    setActionMode('menu')
+    setActionReason('')
+
+    const { data } = await supabase
+      .from('stock_movements')
+      .select('id, quantity_change, movement_type, notes, created_at')
+      .eq('product_id', productId)
+      .eq('location_id', locationId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    setActionModal({
+      productId,
+      locationId,
+      productName,
+      currentStock,
+      movements: (data as any[]) || [],
+    })
+    setActionProcessing(false)
+  }
+
+  const closeProductActions = () => {
+    setActionModal(null)
+    setActionMode('menu')
+    setActionReason('')
+    setActionProcessing(false)
+  }
+
+  const handleZeroStock = async () => {
+    if (!actionModal) return
+    if (actionReason.trim().length < 3) return
+
+    setActionProcessing(true)
+    try {
+      const res = await fetch('/api/products/set-stock-zero', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: actionModal.productId,
+          location_id: actionModal.locationId,
+          reason: actionReason.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Error al poner stock en 0')
+        setActionProcessing(false)
+        return
+      }
+      // Actualizar el stock localmente y recargar
+      setStockLevels(prev =>
+        prev.map(item =>
+          item.product_id === actionModal.productId &&
+          item.location_id === actionModal.locationId
+            ? { ...item, quantity: 0 }
+            : item
+        )
+      )
+      closeProductActions()
+      window.location.reload()
+    } catch (e) {
+      alert('Error de red')
+      setActionProcessing(false)
+    }
+  }
+
+  const handleDeactivateProduct = async () => {
+    if (!actionModal) return
+    if (actionReason.trim().length < 3) return
+
+    setActionProcessing(true)
+    try {
+      const res = await fetch('/api/products/deactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: actionModal.productId,
+          reason: actionReason.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Error al desactivar producto')
+        setActionProcessing(false)
+        return
+      }
+      // Removerlo de la vista
+      setStockLevels(prev =>
+        prev.filter(item => item.product_id !== actionModal.productId)
+      )
+      closeProductActions()
+      window.location.reload()
+    } catch (e) {
+      alert('Error de red')
+      setActionProcessing(false)
+    }
+  }
 
   const filteredStock = stockLevels.filter(
     (item) =>
@@ -349,30 +489,36 @@ export default function StockPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredStock.map((item) => (
-                      <tr
-                        key={`${item.location_id}-${item.product_id}`}
-                        className="border-b border-white/10 hover:bg-white/10 transition-colors"
-                      >
-                        <td className="px-4 py-3.5">
-                          <div className="text-white font-semibold text-sm">{item.product?.name || '-'}</div>
-                          {item.product?.barcode && (
-                            <div className="text-white/45 text-xs mt-0.5">{item.product.barcode}</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 text-sm text-white/75">{item.product?.sku || '-'}</td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white/80">
-                            {item.product?.category?.name || 'sin rubro'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <span className={`inline-flex min-w-[52px] justify-center px-2.5 py-1 rounded-full text-sm font-extrabold border ${qtyBadgeClass(item.quantity)}`}>
-                            {item.quantity}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                     filteredStock.map((item) => (
+                       <tr
+                         key={`${item.location_id}-${item.product_id}`}
+                         onClick={() => openProductActions(
+                           item.product_id,
+                           item.location_id,
+                           item.product?.name || 'Producto',
+                           item.quantity
+                         )}
+                         className="border-b border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+                       >
+                         <td className="px-4 py-3.5">
+                           <div className="text-white font-semibold text-sm">{item.product?.name || '-'}</div>
+                           {item.product?.barcode && (
+                             <div className="text-white/45 text-xs mt-0.5">{item.product.barcode}</div>
+                           )}
+                         </td>
+                         <td className="px-4 py-3.5 text-sm text-white/75">{item.product?.sku || '-'}</td>
+                         <td className="px-4 py-3.5">
+                           <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white/80">
+                             {item.product?.category?.name || 'sin rubro'}
+                           </span>
+                         </td>
+                         <td className="px-4 py-3.5 text-right">
+                           <span className={`inline-flex min-w-[52px] justify-center px-2.5 py-1 rounded-full text-sm font-extrabold border ${qtyBadgeClass(item.quantity)}`}>
+                             {item.quantity}
+                           </span>
+                         </td>
+                       </tr>
+                     ))
                   )}
                 </tbody>
               </table>
@@ -438,8 +584,198 @@ export default function StockPage() {
               </table>
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  )
-}
+         </div>
+       </div>
+
+       {actionModal && (
+         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="w-full max-w-2xl bg-white/15 backdrop-blur-2xl border border-white/30 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+             {actionMode === 'menu' && (
+               <>
+                 <div className="flex items-start justify-between mb-4">
+                   <div className="flex-1">
+                     <h3 className="text-white text-lg font-extrabold break-words">
+                       {actionModal.productName}
+                     </h3>
+                     <p className="text-white/60 text-sm mt-1">
+                       Stock actual: <span className="text-white font-bold">{actionModal.currentStock}</span>
+                     </p>
+                   </div>
+                   <button
+                     onClick={closeProductActions}
+                     className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white shrink-0"
+                   >
+                     ✕
+                   </button>
+                 </div>
+
+                 <div className="mb-5">
+                   <p className="text-white/70 text-xs font-bold uppercase tracking-wider mb-2">
+                     Últimos movimientos
+                   </p>
+                   <div className="bg-black/20 rounded-2xl border border-white/10 max-h-60 overflow-y-auto">
+                     {actionModal.movements.length === 0 ? (
+                       <p className="text-white/50 text-sm p-4 text-center">Sin movimientos</p>
+                     ) : (
+                       <table className="w-full text-sm">
+                         <tbody>
+                           {actionModal.movements.map((mov) => (
+                             <tr key={mov.id} className="border-b border-white/5 last:border-0">
+                               <td className="px-4 py-2 text-white/70 text-xs whitespace-nowrap">
+                                 {new Date(mov.created_at).toLocaleDateString('es-AR', {
+                                   day: '2-digit',
+                                   month: '2-digit',
+                                   year: '2-digit',
+                                   hour: '2-digit',
+                                   minute: '2-digit',
+                                 })}
+                               </td>
+                               <td className="px-2 py-2">
+                                 <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-white/10 border border-white/15 text-white/80">
+                                   {mov.movement_type}
+                                 </span>
+                               </td>
+                               <td className={`px-2 py-2 font-bold text-xs text-right ${mov.quantity_change >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                 {mov.quantity_change >= 0 ? '+' : ''}{mov.quantity_change}
+                               </td>
+                               <td className="px-4 py-2 text-white/60 text-xs truncate max-w-[200px]">
+                                 {mov.notes || '-'}
+                               </td>
+                             </tr>
+                           ))}
+                         </tbody>
+                       </table>
+                     )}
+                   </div>
+                 </div>
+
+                 {userRole === 'owner_admin' ? (
+                   <div className="space-y-2">
+                     <button
+                       onClick={() => setActionMode('zero')}
+                       disabled={actionModal.currentStock === 0}
+                       className="w-full text-left px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                       <p className="font-bold text-sm">Poner stock en 0</p>
+                       <p className="text-white/60 text-xs mt-0.5">
+                         {actionModal.currentStock === 0
+                           ? 'Ya está en 0'
+                           : `Se registrará un ajuste de -${actionModal.currentStock}`}
+                       </p>
+                     </button>
+                     <button
+                       onClick={() => setActionMode('deactivate')}
+                       className="w-full text-left px-4 py-3 rounded-xl bg-rose-500/20 border border-rose-400/30 text-rose-100 hover:bg-rose-500/30"
+                     >
+                       <p className="font-bold text-sm">Eliminar producto</p>
+                       <p className="text-rose-100/70 text-xs mt-0.5">
+                         El producto se desactiva y desaparece del catálogo y del stock. Reversible.
+                       </p>
+                     </button>
+                   </div>
+                 ) : (
+                   <p className="text-white/50 text-xs text-center py-3">
+                     Solo owner/admin puede modificar stock o eliminar productos
+                   </p>
+                 )}
+               </>
+             )}
+
+             {actionMode === 'zero' && (
+               <>
+                 <h3 className="text-white text-lg font-extrabold mb-2">
+                   Poner stock en 0
+                 </h3>
+                 <p className="text-white/70 text-sm mb-4">
+                   <span className="font-bold text-white">{actionModal.productName}</span>
+                   <br />
+                   Stock actual: {actionModal.currentStock} → 0
+                 </p>
+                 <label className="block text-white/70 text-xs font-bold uppercase tracking-wider mb-2">
+                   Motivo (obligatorio)
+                 </label>
+                 <textarea
+                   value={actionReason}
+                   onChange={(e) => setActionReason(e.target.value)}
+                   rows={3}
+                   maxLength={300}
+                   placeholder="Ej: producto descontinuado, faltante de inventario, etc."
+                   className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm resize-none"
+                 />
+                 <p className="text-white/50 text-xs mt-1 mb-4">
+                   {actionReason.trim().length}/300 · mínimo 3 caracteres
+                 </p>
+                 <div className="flex gap-2 justify-end">
+                   <button
+                     onClick={() => { setActionMode('menu'); setActionReason('') }}
+                     disabled={actionProcessing}
+                     className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-sm hover:bg-white/20 disabled:opacity-50"
+                   >
+                     Volver
+                   </button>
+                   <button
+                     onClick={handleZeroStock}
+                     disabled={actionProcessing || actionReason.trim().length < 3}
+                     className="px-4 py-2 rounded-xl bg-gradient-to-br from-[#7FD1C6] to-[#3E9D91] text-white font-bold text-sm hover:brightness-110 disabled:opacity-50"
+                   >
+                     {actionProcessing ? 'Procesando...' : 'Confirmar'}
+                   </button>
+                 </div>
+               </>
+             )}
+
+             {actionMode === 'deactivate' && (
+               <>
+                 <h3 className="text-white text-lg font-extrabold mb-2 text-rose-100">
+                   Eliminar producto
+                 </h3>
+                 <p className="text-white/70 text-sm mb-4">
+                   Vas a desactivar <span className="font-bold text-white">{actionModal.productName}</span>.
+                   El producto dejará de aparecer en catálogo y stock, pero se puede reactivar.
+                   {actionModal.currentStock > 0 && (
+                     <>
+                       <br />
+                       <span className="text-amber-200 text-xs">
+                         Atención: el producto aún tiene {actionModal.currentStock} unidades en stock.
+                       </span>
+                     </>
+                   )}
+                 </p>
+                 <label className="block text-white/70 text-xs font-bold uppercase tracking-wider mb-2">
+                   Motivo (obligatorio)
+                 </label>
+                 <textarea
+                   value={actionReason}
+                   onChange={(e) => setActionReason(e.target.value)}
+                   rows={3}
+                   maxLength={300}
+                   placeholder="Ej: duplicado del producto X, error de carga, etc."
+                   className="w-full bg-black/20 border border-white/15 text-white rounded-xl px-3 py-2 text-sm resize-none"
+                 />
+                 <p className="text-white/50 text-xs mt-1 mb-4">
+                   {actionReason.trim().length}/300 · mínimo 3 caracteres
+                 </p>
+                 <div className="flex gap-2 justify-end">
+                   <button
+                     onClick={() => { setActionMode('menu'); setActionReason('') }}
+                     disabled={actionProcessing}
+                     className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-sm hover:bg-white/20 disabled:opacity-50"
+                   >
+                     Volver
+                   </button>
+                   <button
+                     onClick={handleDeactivateProduct}
+                     disabled={actionProcessing || actionReason.trim().length < 3}
+                     className="px-4 py-2 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white font-bold text-sm hover:brightness-110 disabled:opacity-50"
+                   >
+                     {actionProcessing ? 'Procesando...' : 'Eliminar producto'}
+                   </button>
+                 </div>
+               </>
+             )}
+           </div>
+         </div>
+       )}
+     </div>
+   )
+ }
