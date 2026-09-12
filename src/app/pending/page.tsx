@@ -468,42 +468,50 @@ export default function PendingPage() {
             </div>
           </button>
 
-             <button
-               onClick={() => {
-                 toggleSection('duplicados');
-                 if (!duplicatesLoaded) {
-                   loadDuplicates();
-                 }
-               }}
-               disabled={duplicatesLoaded && duplicatePairs.length === 0}
-               className={`text-left rounded-3xl p-4 border shadow-lg transition-all ${
-                 duplicatePairs.length === 0
-                   ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
-                   : openSection === 'duplicados'
-                   ? 'bg-white text-[#2E5E7E] border-white scale-[1.01]'
-                   : 'bg-white/12 backdrop-blur-xl border-white/20 text-white hover:bg-white/20'
-               }`}
-             >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className={`text-sm font-extrabold ${openSection === 'duplicados' && duplicatePairs.length > 0 ? 'text-[#2E5E7E]' : 'text-inherit'}`}>
-                    Posibles Duplicados
+              <button
+                onClick={() => {
+                  toggleSection('duplicados');
+                  if (!duplicatesLoaded) {
+                    loadDuplicates();
+                  }
+                }}
+                disabled={duplicatesLoaded && duplicatePairs.length === 0}
+                className={`text-left rounded-3xl p-4 border shadow-lg transition-all ${
+                  duplicatesLoaded && duplicatePairs.length === 0
+                    ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
+                    : openSection === 'duplicados'
+                    ? 'bg-white text-[#2E5E7E] border-white scale-[1.01]'
+                    : 'bg-white/12 backdrop-blur-xl border-white/20 text-white hover:bg-white/20'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className={`text-sm font-extrabold ${openSection === 'duplicados' && duplicatesLoaded && duplicatePairs.length > 0 ? 'text-[#2E5E7E]' : 'text-inherit'}`}>
+                      Posibles Duplicados
+                    </div>
+                    <div className={`text-xs mt-0.5 ${openSection === 'duplicados' && duplicatesLoaded && duplicatePairs.length > 0 ? 'text-[#2E5E7E]/70' : 'text-white/60'}`}>
+                      {!duplicatesLoaded
+                        ? 'Revisar duplicados'
+                        : duplicatePairs.length === 0
+                        ? 'Sin duplicados'
+                        : `${duplicatePairs.length} par${duplicatePairs.length === 1 ? '' : 'es'}`}
+                    </div>
                   </div>
-                  <div className={`text-xs mt-0.5 ${openSection === 'duplicados' && duplicatePairs.length > 0 ? 'text-[#2E5E7E]/70' : 'text-white/60'}`}>
-                    {duplicatePairs.length === 0 ? 'Sin duplicados' : `${duplicatePairs.length} par${duplicatePairs.length === 1 ? '' : 'es'}`}
-                  </div>
+                  <span
+                    className={`min-w-[36px] h-9 px-2 rounded-full flex items-center justify-center text-sm font-extrabold border ${
+                      openSection === 'duplicados' && duplicatesLoaded && duplicatePairs.length > 0
+                        ? 'bg-[#2E5E7E]/10 border-[#2E5E7E]/20 text-[#2E5E7E]'
+                        : !duplicatesLoaded
+                        ? 'bg-sky-400/20 border-sky-300/30 text-sky-100'
+                        : duplicatePairs.length === 0
+                        ? 'bg-gray-400/10 border-gray-300/20 text-gray-300'
+                        : 'bg-red-400/20 border-red-300/30 text-red-100'
+                    }`}
+                  >
+                    {!duplicatesLoaded ? '?' : duplicatePairs.length}
+                  </span>
                 </div>
-                <span
-                  className={`min-w-[36px] h-9 px-2 rounded-full flex items-center justify-center text-sm font-extrabold border ${
-                    openSection === 'duplicados' && duplicatePairs.length > 0
-                      ? 'bg-[#2E5E7E]/10 border-[#2E5E7E]/20 text-[#2E5E7E]'
-                      : 'bg-red-400/20 border-red-300/30 text-red-100'
-                  }`}
-                >
-                  {duplicatePairs.length}
-                </span>
-              </div>
-            </button>
+              </button>
         </div>
 
         {/* Contenido */}

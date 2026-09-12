@@ -31,46 +31,41 @@ export async function GET() {
 
     const locationId = userData.location_id
 
-    // 1) Productos sin rubro
-    const { data: withoutCategory, error: catError } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        sku,
-        barcode,
-        category_id,
-        category:categories(name)
-      `)
-      .is('category_id', null)
+    // Las 2 queries corren en paralelo
+    const [withoutCategoryResult, pldResult] = await Promise.all([
+      supabase
+        .from('products')
+        .select(`id, name, sku, barcode, category_id, category:categories(name)`)
+        .is('category_id', null),
+      supabase
+        .from('product_location_data')
+        .select(`
+          product_id,
+          location_id,
+          cost_price,
+          sale_price,
+          price_status,
+          product:products!inner(
+            id, name, sku, barcode, category_id,
+            category:categories(name)
+          )
+        `)
+        .eq('location_id', locationId),
+    ])
 
-    if (catError) return NextResponse.json({ error: catError.message }, { status: 500 })
+    // Validar errores uno a uno (mismo comportamiento que antes)
+    if (withoutCategoryResult.error) return NextResponse.json({ error: withoutCategoryResult.error.message }, { status: 500 })
+    if (pldResult.error) return NextResponse.json({ error: pldResult.error.message }, { status: 500 })
 
-    // 2) Productos con rubro pero sin costo en esta sucursal
-    const { data: withoutCostRaw, error: costError } = await supabase
-      .from('product_location_data')
-      .select(`
-        product_id,
-        location_id,
-        cost_price,
-        sale_price,
-        price_status,
-        product:products!inner(
-          id,
-          name,
-          sku,
-          barcode,
-          category_id,
-          category:categories(name)
-        )
-      `)
-      .eq('location_id', locationId)
-      .or('cost_price.is.null,cost_price.eq.0')
+    const withoutCategory = withoutCategoryResult.data || []
+    const allPld = pldResult.data || []
 
-    if (costError) return NextResponse.json({ error: costError.message }, { status: 500 })
-
-    const withoutCost = (withoutCostRaw || [])
-      .filter((item: any) => item.product?.category_id !== null)
+    // Calcular withoutCost (antes query #4)
+    const withoutCost = allPld
+      .filter((item: any) => 
+        (item.cost_price === null || item.cost_price === 0) &&
+        item.product?.category_id !== null
+      )
       .map((item: any) => ({
         id: item.product?.id,
         product_id: item.product_id,
@@ -84,39 +79,15 @@ export async function GET() {
         price_status: item.price_status,
       }))
 
-    // 3) Pendientes de recálculo: rubro + costo + price_status = 'pending'
-    const { data: pendingRecalcRaw, error: recalcError } = await supabase
-      .from('product_location_data')
-      .select(`
-        product_id,
-        location_id,
-        cost_price,
-        sale_price,
-        price_status,
-        product:products!inner(
-          id,
-          name,
-          sku,
-          barcode,
-          category_id,
-          category:categories(name)
-        )
-      `)
-      .eq('location_id', locationId)
-      .eq('price_status', 'pending')
-      .gt('cost_price', 0)
-
-    if (recalcError) return NextResponse.json({ error: recalcError.message }, { status: 500 })
-
-    const pendingRecalcCount = (pendingRecalcRaw || []).filter(
-      (item: any) => item.product?.category_id !== null
+    // Calcular pendingRecalcCount (antes query #5)
+    const pendingRecalcCount = allPld.filter((item: any) =>
+      item.price_status === 'pending' &&
+      item.cost_price !== null &&
+      item.cost_price > 0 &&
+      item.product?.category_id !== null
     ).length
 
-    return NextResponse.json({
-      withoutCategory: withoutCategory || [],
-      withoutCost,
-      pendingRecalcCount,
-    })
+    return NextResponse.json({ withoutCategory, withoutCost, pendingRecalcCount })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 })
   }
