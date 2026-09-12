@@ -27,7 +27,7 @@
 - Pantalla `/pending` con dos colas: Asignar Rubro y Agregar Costo.
 - Recálculo masivo de precios pendientes con rubro + costo + margen.
 - POS actualizado para leer precios desde `product_location_data` y bloquear productos sin precio.
-- Función `create_sale` actualizada para leer precios/costos desde `product_location_data`.
+- Función `create_sale` actualizado para leer precios/costos desde `product_location_data`.
 - `sale_items` con columnas `cost_price`, `original_price`, `modified_by`, `modified_at`.
 - Venta completada end-to-end en POS con validación de stock y precio congelado.
 - Anulación de ventas (`void_sale`) con motivo obligatorio, control de autoanulación y umbral de monto.
@@ -94,15 +94,25 @@
   - Catálogo/precios: `catalog/update`, `settings/surcharge`, `settings/margins`, `settings/global-surcharge`.
   - Pendientes: `pending/update`, `pending/bulk-update`, `pending/recalculate`.
 - Sección `/logs` con dos pestañas: "Errores" (original) y "Actividad de usuarios" con badge por tipo de acción, buscador, filtro y detalle expandible.
+- Fusión de productos similares durante la importación (con badge de similitud + colores por confianza).
+- Detección de duplicados existentes en el catálogo (`find_duplicate_pairs`).
+- Sección "Posibles Duplicados" dentro de `/pending`, con umbral configurable y paginación.
+- Fusión de productos con 3 modos de stock: sumar, conservar A, conservar B.
+- Soft delete de productos (`is_active`), con RPC `deactivate_product` y `restore_product`.
+- RPC `set_stock_to_zero` con motivo obligatorio y auditoría.
+- Acciones de stock desde `/stock` (modal con historial de movimientos + acciones).
+- RLS sin cambios: `stock_levels` y `stock_movements` nunca se borran, todo vía ajustes.
+- Recuperación de 4 desfases históricos de stock en `stock_levels` vs `stock_movements`.
 
 ### En progreso / parcialmente funcional
 - OCR de remitos/fotos: extrae productos, cantidades y costos; la clasificación automática ya funciona bien, pero puede requerir revisión manual en algunos casos.
 - Carga masiva CSV/Excel: funcional, falta probar con archivo real de gran volumen.
 
 ## Próximos pasos inmediatos
-1. Pruebas integrales con datos reales y roles.
-2. Posible automatización de fusión por umbral de similitud.
-3. Mejoras de UX en el modal de fusión.
+1. Diferenciar `/stock` (operativo) de `/catalog` (comercial, con imágenes y precios).
+2. Test integral con los 3 roles (deposito / encargado / owner_admin).
+3. Limpieza de productos inactivos acumulados y revisión de fusiones previas.
+4. Nombres únicos para productos sin SKU (evitar "Goma Maped blanca" x2).
 
 ## Decisiones técnicas relevantes
 - Stack: Next.js 16 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel.

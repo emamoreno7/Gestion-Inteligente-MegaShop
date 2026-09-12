@@ -78,14 +78,15 @@ export default function CatalogPage() {
     const { data: catData } = await supabase.from('categories').select('id, name').order('name')
     setCategories(catData || [])
 
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        id, name, sku, barcode, category_id, created_at,
-        category:categories(name),
-        product_location_data!inner ( cost_price, sale_price, price_status, updated_at )
-      `)
-      .eq('product_location_data.location_id', locId)
+     const { data, error } = await supabase
+       .from('products')
+       .select(`
+         id, name, sku, barcode, category_id, created_at,
+         category:categories(name),
+         product_location_data!inner ( cost_price, sale_price, price_status, updated_at )
+       `)
+       .eq('product_location_data.location_id', locId)
+       .eq('is_active', true)
 
     if (error) {
       console.error(error)

@@ -97,22 +97,23 @@ export default function InventoryPage() {
     setLocationId(locId)
 
     // Productos con datos comerciales
-    const { data: pldData, error: pldError } = await supabase
-      .from('product_location_data')
-      .select(`
-        product_id,
-        min_stock,
-        sale_price,
-        cost_price,
-        product:products!inner (
-          id,
-          name,
-          sku,
-          barcode
-        )
-      `)
-      .eq('location_id', locId)
-      .order('product_id')
+     const { data: pldData, error: pldError } = await supabase
+       .from('product_location_data')
+       .select(`
+         product_id,
+         min_stock,
+         sale_price,
+         cost_price,
+         product:products!inner (
+           id,
+           name,
+           sku,
+           barcode
+         )
+       `)
+       .eq('location_id', locId)
+       .eq('product.is_active', true)
+       .order('product_id')
 
     if (pldError) {
       setError(pldError.message)
