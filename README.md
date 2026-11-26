@@ -20,7 +20,19 @@ flowchart LR
 
 The review step matters: an incorrect quantity, barcode or cost can affect stock and pricing.
 
-The application also includes a dashboard, product catalog, pricing, location-aware inventory and Supabase authentication. AI provider calls are handled through server routes.
+The import process normalizes product identifiers, costs, sale prices, quantities and categories. It also searches for similar existing products and lets the operator decide whether to merge a match or create a new item. AI provider calls are handled through server routes.
+
+## Inventory and access control
+
+The application uses Supabase Auth and PostgreSQL. Access is designed around user roles, branch assignments and row-level security (RLS), rather than relying on the interface alone. Catalog and stock views include location-specific data, price history and inventory movements. The maintenance interface provides access to error logs and user activity for administrators.
+
+I'm also working on inventory monitoring: identifying duplicates, reviewing products with no movement over a monthly period and using that information to help decide which items to promote. The import-time similarity check is present in the repository; continuous monitoring and monthly reporting still need separate validation.
+
+## Connecting retail inventory to AutoPilot
+
+The next step is to connect MegaShop with DOTCOM's AutoPilot AI. The idea is to match trends relevant to the shop's niche against available inventory, select suitable products and prepare or publish promotional content through connected social accounts.
+
+This is the proposed integration for an autonomous e-commerce workflow, not a completed end-to-end integration. Stock availability, prices and publishing permissions need to remain under the merchant's control.
 
 ## Development
 
